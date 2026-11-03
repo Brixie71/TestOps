@@ -5,9 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'TestOps')</title>
 
+    {{-- Apply the saved (or system) theme before first paint to prevent a flash --}}
+    <script>
+        (function () {
+            var theme;
+            try {
+                theme = localStorage.getItem('testops-theme');
+            } catch (error) {}
+
+            if (!theme && window.matchMedia) {
+                theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            }
+
+            theme = theme === 'dark' ? 'dark' : 'light';
+
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark');
+            }
+        })();
+    </script>
+
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased">
+<body class="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100">
     {{-- Keyboard accessibility: skip past the navigation chrome --}}
     <a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-indigo-600 focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white">
         Skip to main content
@@ -89,5 +109,7 @@
             });
         })();
     </script>
+    {{-- Floating theme card (global component) --}}
+    <x-theme-toggle />
 </body>
 </html>
