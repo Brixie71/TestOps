@@ -3,8 +3,17 @@
 @source '../**/*.blade.php';
 @source '../**/*.js';
 
+/* Class-based dark mode: the theme bootstrap toggles `.dark` on <html>. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
+
+    /* Cream white — the formal light-mode surface palette. */
+    --color-cream-50: #fbf8f3;
+    --color-cream-100: #f6f1e8;
+    --color-cream-200: #ece3d4;
+    --color-cream-300: #ded2bd;
 }
 
 /*
@@ -27,19 +36,238 @@
 |--------------------------------------------------------------------------
 */
 
+/* Edge/Chrome render their own eye icon inside password fields; the login
+   form already has a custom toggle button, so hide the builtin one. */
+input::-ms-reveal,
+input::-ms-clear,
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+    display: none;
+    visibility: hidden;
+    height: 0;
+    width: 0;
+}
+
 /* Indigo text selection to match the brand palette. */
 ::selection {
+    background-color: rgb(99 102 241 / 0.2);
+}
+
+html.dark ::selection {
     background-color: rgb(99 102 241 / 0.35);
 }
 
-/* Keep browser autofill readable on dark surfaces (Chrome/Safari render
+/* Keep browser autofill readable in both themes (Chrome/Safari render
    autofilled inputs with a white background by default). */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
 input:-webkit-autofill:active {
-    -webkit-text-fill-color: rgb(241 245 249); /* slate-100 */
-    -webkit-box-shadow: 0 0 0 1000px rgb(15 23 42) inset; /* slate-900 */
-    caret-color: rgb(241 245 249);
+    -webkit-text-fill-color: rgb(41 37 36); /* stone-800 */
+    -webkit-box-shadow: 0 0 0 1000px #ffffff inset;
+    caret-color: rgb(41 37 36);
     transition: background-color 9999s ease-in-out 0s;
+}
+
+html.dark input:-webkit-autofill,
+html.dark input:-webkit-autofill:hover,
+html.dark input:-webkit-autofill:focus,
+html.dark input:-webkit-autofill:active {
+    -webkit-text-fill-color: rgb(241 245 249); /* slate-100 */
+    -webkit-box-shadow: 0 0 0 1000px rgb(2 6 23) inset; /* slate-950 */
+    caret-color: rgb(241 245 249);
+}
+
+/*
+|--------------------------------------------------------------------------
+| Theme floating card
+|--------------------------------------------------------------------------
+| Floating side card for switching between light and dark mode.
+| Pattern reference: .ai/templates/FLOATING-CARD.md
+*/
+
+:root {
+    --tc-border: rgb(168 162 158 / 0.55); /* stone-400 */
+    --tc-surface: #ffffff;
+    --tc-surface-elevated: #fbf8f3; /* cream-50 */
+    --tc-line: rgb(231 229 228); /* stone-200 */
+    --tc-line-strong: rgb(214 211 209); /* stone-300 */
+    --tc-text: rgb(41 37 36); /* stone-800 */
+    --tc-muted: rgb(120 113 108); /* stone-500 */
+}
+
+html.dark {
+    --tc-border: rgb(51 65 85); /* slate-700 */
+    --tc-surface: rgb(2 6 23); /* slate-950 */
+    --tc-surface-elevated: rgb(15 23 42); /* slate-900 */
+    --tc-line: rgb(30 41 59); /* slate-800 */
+    --tc-line-strong: rgb(51 65 85); /* slate-700 */
+    --tc-text: rgb(241 245 249); /* slate-100 */
+    --tc-muted: rgb(148 163 184); /* slate-400 */
+}
+
+/* Fixed overlay — does not block the page by default */
+.theme-panel {
+    position: fixed;
+    inset: 0;
+    z-index: 1300;
+    pointer-events: none;
+}
+
+/* Slide-in container */
+.theme-card {
+    --theme-handle-width: 2.5rem;
+    --theme-panel-width: min(40vw, 18.5rem);
+    --theme-panel-offset: max(10vh, 1.5rem);
+    position: absolute;
+    right: 0;
+    bottom: var(--theme-panel-offset);
+    display: flex;
+    align-items: center;
+    width: calc(var(--theme-panel-width) + var(--theme-handle-width));
+    overflow: hidden;
+    pointer-events: auto;
+    transform: translateX(var(--theme-panel-width));
+    transition: transform 0.24s ease;
+}
+
+/* Open state — moves the whole card into view */
+.theme-panel.is-open .theme-card {
+    transform: translateX(0);
+}
+
+/* Visible handle snapped to the right edge */
+.theme-handle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 var(--theme-handle-width);
+    width: var(--theme-handle-width);
+    height: 2.75rem;
+    border: 1px solid var(--tc-border);
+    border-right: 0;
+    border-radius: 12px 0 0 12px;
+    background: var(--tc-surface);
+    color: var(--tc-text);
+    cursor: pointer;
+    box-shadow: 0 10px 30px rgb(28 25 23 / 0.12);
+    transition: background-color 0.15s ease;
+}
+
+html.dark .theme-handle {
+    box-shadow: 0 10px 30px rgb(0 0 0 / 0.45);
+}
+
+.theme-handle:hover {
+    background: var(--tc-surface-elevated);
+}
+
+.theme-handle:focus-visible {
+    outline: 2px solid rgb(99 102 241);
+    outline-offset: -2px;
+}
+
+/* Handle icon mirrors the active mode: sun on light pages, moon on dark */
+.theme-icon-sun {
+    display: block;
+}
+
+.theme-icon-moon {
+    display: none;
+}
+
+html.dark .theme-icon-sun {
+    display: none;
+}
+
+html.dark .theme-icon-moon {
+    display: block;
+}
+
+/* Panel interior — width, max height, internal scroll */
+.theme-card-body {
+    align-self: flex-end;
+    display: grid;
+    gap: 0.85rem;
+    width: var(--theme-panel-width);
+    max-width: calc(100vw - var(--theme-handle-width));
+    max-height: calc(100vh - (var(--theme-panel-offset) * 2));
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+    padding: 1.1rem 1.1rem 1.2rem;
+    border: 1px solid var(--tc-border);
+    border-right: 0;
+    border-radius: 12px 0 0 12px;
+    background: var(--tc-surface-elevated);
+    box-shadow: 0 24px 48px rgb(28 25 23 / 0.14);
+}
+
+html.dark .theme-card-body {
+    box-shadow: 0 24px 48px rgb(0 0 0 / 0.5);
+}
+
+/* Disable interaction while closed */
+.theme-card-body[aria-hidden="true"] {
+    pointer-events: none;
+}
+
+.theme-card-title {
+    margin: 0;
+    font-size: 1.02rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--tc-text);
+}
+
+.theme-card-hint {
+    margin: 0;
+    font-size: 0.8rem;
+    line-height: 1.45;
+    color: var(--tc-muted);
+}
+
+/* Light / Dark mode buttons */
+.theme-mode-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 2.45rem;
+    width: 100%;
+    padding: 0.65rem 0.8rem;
+    border: 1px solid var(--tc-line-strong);
+    border-radius: 8px;
+    background: var(--tc-surface);
+    color: var(--tc-text);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.theme-mode-button:hover {
+    background: var(--tc-surface-elevated);
+    border-color: var(--tc-border);
+}
+
+.theme-mode-button:focus-visible {
+    outline: 2px solid rgb(99 102 241);
+    outline-offset: 2px;
+}
+
+/* Active theme is marked with aria-pressed="true" by the theme script */
+.theme-mode-button[aria-pressed="true"] {
+    border-color: rgb(99 102 241);
+    background: rgb(99 102 241 / 0.08);
+    color: rgb(79 70 229);
+}
+
+html.dark .theme-mode-button[aria-pressed="true"] {
+    color: rgb(165 180 252); /* indigo-300 */
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .theme-card {
+        transition: none;
+    }
 }
