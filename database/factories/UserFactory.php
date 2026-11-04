@@ -42,4 +42,18 @@ class UserFactory extends Factory
             'email_verified_at' => null,
         ]);
     }
+
+    /**
+     * Configure the factory callbacks.
+     */
+    public function configure(): static
+    {
+        return $this->afterCreating(function (User $user): void {
+            $user->emailAddresses()->create([
+                'email' => $user->email,
+                'status' => 'current',
+                'verified_at' => $user->email_verified_at,
+            ]);
+        });
+    }
 }

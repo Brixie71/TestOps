@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -66,5 +67,10 @@ class User extends Authenticatable
         return $this->belongsToMany(Project::class)
             ->withPivot('role_id')
             ->withTimestamps();
+    }
+
+    public function emailAddresses(): HasMany
+    {
+        return $this->hasMany(UserEmailAddress::class);
     }
 }
