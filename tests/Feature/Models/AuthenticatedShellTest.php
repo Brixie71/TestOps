@@ -37,4 +37,40 @@ class AuthenticatedShellTest extends TestCase
         // A logged-out user cannot revisit /dashboard.
         $this->get('/dashboard')->assertRedirect('/login');
     }
+
+    public function test_active_users_can_log_in_with_valid_credentials(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'active@example.com',
+            'password' => 'password',
+            'account_status' => 'active',
+        ]);
+
+        $this->post('/login', [
+            'email' => 'active@example.com',
+            'password' => 'password',
+        ])
+            ->assertRedirect('/dashboard');
+
+        $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_invited_users_cannot_log_in_with_valid_credentials(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'invited@example.com',
+            'password' => 'password',
+            'account_status' => 'invited',
+        ]);
+
+        $this->from('/login')
+            ->post('/login', [
+                'email' => 'invited@example.com',
+                'password' => 'password',
+            ])
+            ->assertRedirect('/login')
+            ->assertSessionHasErrors('email');
+
+        $this->assertGuest();
+    }
 }

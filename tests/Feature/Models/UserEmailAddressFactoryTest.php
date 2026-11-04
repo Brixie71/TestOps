@@ -39,4 +39,20 @@ class UserEmailAddressFactoryTest extends TestCase
         $this->assertNull($user->email_verified_at);
         $this->assertNull($emailAddress->verified_at);
     }
+
+    public function test_factory_creates_an_active_account_by_default(): void
+    {
+        $user = User::factory()->create();
+
+        $this->assertSame('active', $user->account_status);
+    }
+
+    public function test_factory_can_create_an_invited_account(): void
+    {
+        $user = User::factory()->create([
+            'account_status' => 'invited',
+        ]);
+
+        $this->assertSame('invited', $user->account_status);
+    }
 }

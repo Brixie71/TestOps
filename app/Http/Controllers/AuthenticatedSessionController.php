@@ -21,6 +21,8 @@ class AuthenticatedSessionController extends Controller
             'password' => ['required', 'string'],
         ]);
 
+        $credentials['account_status'] = 'active';
+
         if (! Auth::attempt($credentials, $request->boolean('remember'))) {
             return back()
                 ->withErrors([
