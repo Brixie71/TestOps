@@ -187,4 +187,25 @@ class ProjectRelationshipTest extends TestCase
             $projectMembers->pluck('pivot.project_id')->sort()->values()->all()
         );
     }
+
+    public function test_soft_deleted_users_are_excluded_from_normal_queries(): void
+    {
+        $user = User::factory()->create();
+
+        $this->assertTrue(
+            User::query()->whereKey($user->id)->exists()
+        );
+
+        $user->delete();
+
+        $this->assertNotNull($user->fresh()->deleted_at);
+
+        $this->assertFalse(
+            User::query()->whereKey($user->id)->exists()
+        );
+
+        $this->assertTrue(
+            User::withTrashed()->whereKey($user->id)->exists()
+        );
+    }
 }

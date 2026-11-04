@@ -1,0 +1,8 @@
+﻿.env
+haraka/config/auth_flat_file.ini
+haraka/config/smtp_forward.ini
+haraka/queue/
+haraka/logs/
+data/
+haraka/config/tls_key.pem
+haraka/config/tls_cert.pem

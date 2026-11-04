@@ -1,0 +1,43 @@
+﻿services:
+  haraka:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: testops-haraka
+    restart: unless-stopped
+    environment:
+      DELIVERY_MODE: ${DELIVERY_MODE:-capture}
+      HARAKA_SMTP_USER: ${HARAKA_SMTP_USER}
+      HARAKA_SMTP_PASSWORD: ${HARAKA_SMTP_PASSWORD}
+    ports:
+      - "127.0.0.1:2525:2525"
+    volumes:
+      - ./haraka/config:/app/config
+      - ./haraka/scripts:/app/plugins:ro
+      - haraka_queue:/app/queue
+    depends_on:
+      - mailpit
+    networks:
+      - email_network
+
+  mailpit:
+    image: axllent/mailpit:v1.32.0
+    container_name: testops-mailpit
+    restart: unless-stopped
+    environment:
+      MP_DATABASE: /data/mailpit.db
+      MP_MAX_MESSAGES: 5000
+    ports:
+      - "127.0.0.1:8025:8025"
+    volumes:
+      - mailpit_data:/data
+    networks:
+      - email_network
+
+volumes:
+  haraka_queue:
+  mailpit_data:
+
+networks:
+  email_network:
+    driver: bridge

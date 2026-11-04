@@ -1,0 +1,4 @@
+tls
+auth/flat_file
+rcpt_to.authenticated_only
+queue/smtp_forward
