@@ -5,6 +5,7 @@ Before planning or editing, find the row whose globs match the file's path and r
 | Applies to | Rule file |
 | --- | --- |
 | app/**/*.php | .ai/rules/app.md |
+| app/Services/Authorization/**, app/Http/Middleware/**, config/passport.php, routes/api.php, OAuth/service-client storage, docs/oauth-service-authorization.md | .ai/rules/oauth.md |
 | composer.json | .ai/rules/composer-json.md |
 | app/Http/Controllers/*.php | .ai/rules/controllers.md |
 | database/factories/*.php | .ai/rules/factories.md |

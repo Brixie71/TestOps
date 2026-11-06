@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthenticatedSessionController;
+use App\Http\Controllers\Settings\UserDirectoryController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -49,7 +50,8 @@ Route::middleware('auth')->group(function () {
 
 Route::middleware(['auth', 'super.admin'])->name('settings.')->group(function () {
     Route::view('settings', 'settings.index')->name('index');
-    Route::view('settings/users', 'settings.users')->name('users');
+    Route::get('settings/users', [UserDirectoryController::class, 'index'])
+        ->name('users');
     Route::view('settings/roles', 'settings.roles')->name('roles');
     Route::view('settings/permissions', 'settings.permissions')->name('permissions');
     Route::view('settings/about', 'settings.about')->name('about');
