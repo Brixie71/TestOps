@@ -82,6 +82,16 @@ class UserDirectoryTest extends TestCase
                     && $directoryUser->relationLoaded('role')
                     && $directoryUser->role?->code === 'SUPER_ADMIN';
             });
+        $response->assertSee('name="search"', false)
+            ->assertSee('name="status"', false)
+            ->assertSee('name="role"', false)
+            ->assertSee('name="department"', false)
+            ->assertSee('name="sort"', false)
+            ->assertSee('name="direction"', false)
+            ->assertSee('Department')
+            ->assertSee('System role')
+            ->assertSee('Date created')
+            ->assertSee('Search name, email, contact, job title...');
     }
 
     public function test_directory_can_search_by_name(): void
@@ -163,6 +173,244 @@ class UserDirectoryTest extends TestCase
         });
     }
 
+    public function test_directory_can_search_all_profile_fields_case_insensitively(): void
+    {
+        $admin = $this->superAdmin();
+
+        $cases = [
+            ['contact_number', '09171234567', '0917123'],
+            ['job_title', 'Senior Backend Engineer', 'BACKEND ENGINEER'],
+            ['department', 'Quality Assurance', 'quality assurance'],
+        ];
+
+        foreach ($cases as [$field, $value, $search]) {
+            $user = User::factory()->create([
+                $field => $value,
+            ]);
+
+            $this->actingAs($admin)
+                ->get(route('settings.users', ['search' => $search]))
+                ->assertOk()
+                ->assertViewHas('users', function ($users) use ($user): bool {
+                    return $users->total() === 1
+                        && $users->contains('id', $user->id);
+                });
+        }
+    }
+
+    public function test_directory_can_filter_by_system_role_only(): void
+    {
+        $admin = $this->superAdmin();
+
+        $systemRole = Role::query()->create([
+            'name' => 'System Admin',
+            'code' => 'SYSTEM_ADMIN',
+            'scope' => 'system',
+        ]);
+
+        $projectRole = Role::query()->create([
+            'name' => 'Project Admin',
+            'code' => 'PROJECT_ADMIN',
+            'scope' => 'project',
+        ]);
+
+        $matchingUser = User::factory()->create([
+            'role_id' => $systemRole->id,
+        ]);
+
+        User::factory()->create([
+            'role_id' => $projectRole->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('settings.users', ['role' => $systemRole->id]))
+            ->assertOk()
+            ->assertViewHas('users', function ($users) use ($matchingUser): bool {
+                return $users->total() === 1
+                    && $users->contains('id', $matchingUser->id);
+            })
+            ->assertViewHas('systemRoles', function ($roles) use ($systemRole, $projectRole): bool {
+                return $roles->contains('id', $systemRole->id)
+                    && ! $roles->contains('id', $projectRole->id);
+            });
+    }
+
+    public function test_directory_can_filter_by_department(): void
+    {
+        $admin = $this->superAdmin();
+
+        $matchingUser = User::factory()->create([
+            'department' => 'Quality Assurance',
+        ]);
+
+        User::factory()->create([
+            'department' => 'Information Technology',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('settings.users', ['department' => 'Quality Assurance']))
+            ->assertOk()
+            ->assertViewHas('users', function ($users) use ($matchingUser): bool {
+                return $users->total() === 1
+                    && $users->contains('id', $matchingUser->id);
+            })
+            ->assertViewHas('departments', function ($departments): bool {
+                return $departments->contains('Quality Assurance')
+                    && $departments->contains('Information Technology');
+            });
+    }
+
+    public function test_directory_can_sort_by_email_descending(): void
+    {
+        $admin = $this->superAdmin();
+
+        $first = User::factory()->create([
+            'name' => 'First User',
+            'email' => 'a-sort@example.com',
+        ]);
+
+        $last = User::factory()->create([
+            'name' => 'Last User',
+            'email' => 'z-sort@example.com',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('settings.users', [
+                'sort' => 'email',
+                'direction' => 'desc',
+            ]))
+            ->assertOk()
+            ->assertViewHas('users', function ($users) use ($last, $first): bool {
+                return $users->first()->id === $last->id
+                    && $users->last()->id === $first->id;
+            });
+    }
+
+    public function test_directory_can_sort_by_system_role_name_in_both_directions(): void
+    {
+        $admin = $this->superAdmin();
+
+        $systemAdminRole = Role::query()->create([
+            'name' => 'System Admin',
+            'code' => 'SYSTEM_ADMIN',
+            'scope' => 'system',
+        ]);
+
+        $projectRole = Role::query()->create([
+            'name' => 'Project Admin',
+            'code' => 'PROJECT_ADMIN',
+            'scope' => 'project',
+        ]);
+
+        $systemAdmin = User::factory()->create([
+            'name' => 'System Admin User',
+            'role_id' => $systemAdminRole->id,
+        ]);
+
+        $standardUser = $this->regularUser();
+
+        $projectRoleUser = User::factory()->create([
+            'name' => 'Project Role User',
+            'role_id' => $projectRole->id,
+        ]);
+
+        $unassignedUser = User::factory()->create([
+            'name' => 'Unassigned User',
+            'role_id' => null,
+        ]);
+
+        // Ascending: system roles A-Z, followed by non-system roles.
+        $ascendingResponse = $this->actingAs($admin)
+            ->get(route('settings.users', [
+                'sort' => 'role',
+                'direction' => 'asc',
+            ]));
+
+        $ascendingResponse->assertOk()
+            ->assertViewHas('users', function ($users) use (
+                $admin,
+                $standardUser,
+                $systemAdmin,
+                $projectRoleUser,
+                $unassignedUser
+            ): bool {
+                $orderedIds = $users->getCollection()->pluck('id')->all();
+
+                $standardPosition = array_search($standardUser->id, $orderedIds, true);
+                $adminPosition = array_search($admin->id, $orderedIds, true);
+                $systemAdminPosition = array_search($systemAdmin->id, $orderedIds, true);
+                $projectRolePosition = array_search($projectRoleUser->id, $orderedIds, true);
+                $unassignedPosition = array_search($unassignedUser->id, $orderedIds, true);
+
+                return $standardPosition !== false
+                    && $adminPosition !== false
+                    && $systemAdminPosition !== false
+                    && $projectRolePosition !== false
+                    && $unassignedPosition !== false
+                    && $standardPosition < $adminPosition
+                    && $adminPosition < $systemAdminPosition
+                    && $systemAdminPosition < $projectRolePosition
+                    && $projectRolePosition < $unassignedPosition;
+            });
+
+        // Descending: system roles Z-A, followed by non-system roles.
+        $descendingResponse = $this->get(route('settings.users', [
+            'sort' => 'role',
+            'direction' => 'desc',
+        ]));
+
+        $descendingResponse->assertOk()
+            ->assertViewHas('users', function ($users) use (
+                $admin,
+                $standardUser,
+                $systemAdmin,
+                $projectRoleUser,
+                $unassignedUser
+            ): bool {
+                $orderedIds = $users->getCollection()->pluck('id')->all();
+
+                $systemAdminPosition = array_search($systemAdmin->id, $orderedIds, true);
+                $adminPosition = array_search($admin->id, $orderedIds, true);
+                $standardPosition = array_search($standardUser->id, $orderedIds, true);
+                $projectRolePosition = array_search($projectRoleUser->id, $orderedIds, true);
+                $unassignedPosition = array_search($unassignedUser->id, $orderedIds, true);
+
+                return $systemAdminPosition !== false
+                    && $adminPosition !== false
+                    && $standardPosition !== false
+                    && $projectRolePosition !== false
+                    && $unassignedPosition !== false
+                    && $systemAdminPosition < $adminPosition
+                    && $adminPosition < $standardPosition
+                    && $standardPosition < $projectRolePosition
+                    && $projectRolePosition < $unassignedPosition;
+            });
+    }
+
+    public function test_directory_falls_back_to_default_sort_for_invalid_sort_parameters(): void
+    {
+        $admin = $this->superAdmin();
+
+        $alphabeticallyFirst = User::factory()->create([
+            'name' => 'Alpha User',
+        ]);
+
+        User::factory()->create([
+            'name' => 'Zulu User',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('settings.users', [
+                'sort' => 'password',
+                'direction' => 'invalid',
+            ]))
+            ->assertOk()
+            ->assertViewHas('users', function ($users) use ($admin, $alphabeticallyFirst): bool {
+                return $users->first()->id === $admin->id
+                    && $users->getCollection()->contains('id', $alphabeticallyFirst->id);
+            });
+    }
+
     public function test_directory_can_filter_by_account_status(): void
     {
         $admin = $this->superAdmin();
@@ -213,24 +461,26 @@ class UserDirectoryTest extends TestCase
     }
 
     /**
-     * Requires the controller to paginate with fewer than 16 results per page
-     * (Laravel's default of 15 satisfies this — if an explicit larger
-     * per-page is ever set, url(2) becomes null and this assertion fails on
-     * the undefined key) and to call withQueryString() so filters survive.
+     * Verifies the directory uses 50 rows per page and preserves all active
+     * filters and sorting parameters in pagination links.
      */
-    public function test_pagination_preserves_search_and_status_filters(): void
+    public function test_pagination_uses_50_rows_and_preserves_all_filters(): void
     {
         $admin = $this->superAdmin();
 
-        User::factory()->count(16)->create([
+        User::factory()->count(51)->create([
             'name' => 'Pagination Directory User',
             'account_status' => 'active',
+            'department' => 'Engineering',
         ]);
 
         $response = $this->actingAs($admin)
             ->get(route('settings.users', [
                 'search' => 'Pagination Directory',
                 'status' => 'active',
+                'department' => 'Engineering',
+                'sort' => 'email',
+                'direction' => 'desc',
             ]));
 
         $response->assertOk()
@@ -240,9 +490,14 @@ class UserDirectoryTest extends TestCase
                     $query
                 );
 
-                return $users->total() === 16
+                return $users->total() === 51
+                    && $users->perPage() === 50
+                    && $users->count() === 50
                     && $query['search'] === 'Pagination Directory'
                     && $query['status'] === 'active'
+                    && $query['department'] === 'Engineering'
+                    && $query['sort'] === 'email'
+                    && $query['direction'] === 'desc'
                     && $query['page'] === '2';
             });
     }
