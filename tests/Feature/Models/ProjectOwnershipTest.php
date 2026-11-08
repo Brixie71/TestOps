@@ -232,4 +232,37 @@ class ProjectOwnershipTest extends TestCase
 
         $owner->forceDelete();
     }
+
+    public function test_owner_assignment_type_cannot_be_cleared_by_a_direct_database_update(): void
+    {
+        $project = Project::factory()->create();
+
+        $this->expectException(QueryException::class);
+
+        DB::table('projects')
+            ->where('id', $project->id)
+            ->update(['owner_assignment_type' => null]);
+    }
+
+    public function test_owner_assignment_type_cannot_be_changed_to_an_invalid_value_by_a_direct_database_update(): void
+    {
+        $project = Project::factory()->create();
+
+        $this->expectException(QueryException::class);
+
+        DB::table('projects')
+            ->where('id', $project->id)
+            ->update(['owner_assignment_type' => 'expired']);
+    }
+
+    public function test_assignment_type_cannot_be_added_to_an_unassigned_project_by_a_direct_database_update(): void
+    {
+        $project = Project::factory()->withoutOwner()->create();
+
+        $this->expectException(QueryException::class);
+
+        DB::table('projects')
+            ->where('id', $project->id)
+            ->update(['owner_assignment_type' => 'permanent']);
+    }
 }

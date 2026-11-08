@@ -33,6 +33,18 @@ class ProjectPolicy
 
     public function view(User $user, Project $project): bool
     {
+        // SYSTEM_ADMIN cross-project visibility (approved): a system
+        // administrator entrusted with either existing cross-project
+        // management permission can view any project without membership.
+        // A SYSTEM_ADMIN without the management grants keeps the previous
+        // member-plus-system-permission path below — and holding
+        // projects.view alone never grants cross-project viewing.
+        if ($this->isSystemAdmin($user)) {
+            return $this->hasSystemGrant($user, 'projects.manage-members')
+                || $this->hasSystemGrant($user, 'projects.manage-ownership')
+                || $this->hasProjectAccess($user, $project, 'projects.view');
+        }
+
         return $this->canPerform($user, $project, 'projects.view');
     }
 
@@ -97,17 +109,25 @@ class ProjectPolicy
      */
     private function hasSystemGrant(User $user, string $permissionCode): bool
     {
-        $systemRole = $user->role;
-
-        if (
-            ! $systemRole ||
-            $systemRole->scope !== 'system' ||
-            $systemRole->code !== 'SYSTEM_ADMIN'
-        ) {
+        if (! $this->isSystemAdmin($user)) {
             return false;
         }
 
         return $this->permissionChecker->allows($user, $permissionCode);
+    }
+
+    /**
+     * True only for a system-scope role with the SYSTEM_ADMIN code: the
+     * scope/code pair is the boundary, so a project-scoped role can never
+     * reach this branch and grant system-level authority.
+     */
+    private function isSystemAdmin(User $user): bool
+    {
+        $systemRole = $user->role;
+
+        return $systemRole !== null
+            && $systemRole->scope === 'system'
+            && $systemRole->code === 'SYSTEM_ADMIN';
     }
 
     /**
@@ -147,15 +167,9 @@ class ProjectPolicy
         Project $project,
         string $permissionCode
     ): bool {
-        $systemRole = $user->role;
-
         // SYSTEM ADMIN must have both system permission and membership.
         // Ownership does not bypass these requirements.
-        if (
-            $systemRole &&
-            $systemRole->scope === 'system' &&
-            $systemRole->code === 'SYSTEM_ADMIN'
-        ) {
+        if ($this->isSystemAdmin($user)) {
             return $this->hasProjectAccess(
                 $user,
                 $project,

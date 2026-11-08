@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Projects;
 
+use App\Models\Permission;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
@@ -63,6 +64,83 @@ class ProjectReadHttpTest extends TestCase
             ->assertOk()
             ->assertSee($ownedByOthers->name)
             ->assertSee($unowned->name);
+    }
+
+    public function test_system_admin_with_approved_permissions_sees_all_projects_and_views_non_member_project(): void
+    {
+        $actor = $this->createSystemAdmin(['projects.manage-members', 'projects.manage-ownership']);
+
+        $ownedByOthers = Project::factory()->create();
+        $unowned = Project::factory()->withoutOwner()->create();
+
+        $this->actingAs($actor)
+            ->get(route('projects.index'))
+            ->assertOk()
+            ->assertSee($ownedByOthers->name)
+            ->assertSee($unowned->name);
+
+        // Cross-project detail access without any membership.
+        $this->actingAs($actor)
+            ->get(route('projects.show', $ownedByOthers))
+            ->assertOk();
+    }
+
+    public function test_system_admin_without_approved_permissions_cannot_gain_cross_project_access(): void
+    {
+        $actor = $this->createSystemAdmin([]);
+
+        $othersProject = Project::factory()->create();
+        $unowned = Project::factory()->withoutOwner()->create();
+
+        $this->actingAs($actor)
+            ->get(route('projects.index'))
+            ->assertOk()
+            ->assertDontSee($othersProject->name)
+            ->assertDontSee($unowned->name);
+
+        $this->actingAs($actor)
+            ->get(route('projects.show', $othersProject))
+            ->assertForbidden();
+    }
+
+    public function test_system_admin_owner_without_system_view_permission_does_not_see_project_in_directory(): void
+    {
+        $actor = $this->createSystemAdmin([]);
+
+        $project = Project::factory()->create([
+            'owner_id' => $actor->id,
+        ]);
+
+        $this->actingAs($actor)
+            ->get(route('projects.index'))
+            ->assertOk()
+            ->assertDontSee($project->name);
+
+        $this->actingAs($actor)
+            ->get(route('projects.show', $project))
+            ->assertForbidden();
+    }
+
+    public function test_system_admin_with_system_view_permission_sees_member_project_without_project_view_role(): void
+    {
+        $actor = $this->createSystemAdmin(['projects.view']);
+
+        $project = Project::factory()->create();
+
+        // PROJECT_VIEWER deliberately has no projects.view permission.
+        $project->members()->attach(
+            $actor->id,
+            ['role_id' => $this->projectRole('PROJECT_VIEWER')->id],
+        );
+
+        $this->actingAs($actor)
+            ->get(route('projects.index'))
+            ->assertOk()
+            ->assertSee($project->name);
+
+        $this->actingAs($actor)
+            ->get(route('projects.show', $project))
+            ->assertOk();
     }
 
     public function test_regular_users_see_only_member_projects_they_can_view(): void
@@ -193,6 +271,60 @@ class ProjectReadHttpTest extends TestCase
             ->assertDontSee('No admin assigned');
     }
 
+    public function test_system_admin_can_transfer_ownership_away_from_a_deactivated_owner(): void
+    {
+        $actor = $this->createSystemAdmin(['projects.manage-ownership']);
+        $project = Project::factory()->create();
+        $previousOwner = $project->owner;
+
+        $project->members()->attach(
+            $previousOwner->id,
+            ['role_id' => $this->projectRole('PROJECT_ADMIN')->id],
+        );
+
+        $previousOwner->delete();
+
+        $newOwner = $this->createProjectAdmin($project);
+
+        // The transfer control must remain available for a deactivated owner.
+        $this->actingAs($actor)
+            ->get(route('projects.show', $project))
+            ->assertOk()
+            ->assertSee('Deactivated')
+            ->assertSee('Transfer owner')
+            ->assertDontSee('Change assignment type');
+
+        // Ownership can be transferred without reactivating the former owner.
+        $this->actingAs($actor)
+            ->post(route('projects.ownership.transfer', $project), [
+                'user_id' => $newOwner->id,
+                'assignment_type' => 'temporary',
+                'reason' => 'Reassigning ownership from a deactivated account.',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('projects', [
+            'id' => $project->id,
+            'owner_id' => $newOwner->id,
+            'owner_assignment_type' => 'temporary',
+        ]);
+
+        $this->assertSoftDeleted('users', ['id' => $previousOwner->id]);
+
+        $this->assertDatabaseHas('project_user', [
+            'project_id' => $project->id,
+            'user_id' => $previousOwner->id,
+            'role_id' => $this->projectRole('PROJECT_ADMIN')->id,
+        ]);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'project.ownership.transferred',
+            'actor_user_id' => $actor->id,
+            'target_user_id' => $newOwner->id,
+            'reason' => 'Reassigning ownership from a deactivated account.',
+        ]);
+    }
+
     public function test_ownership_badges_render_the_semantic_labels(): void
     {
         $actor = $this->createSuperAdmin();
@@ -264,6 +396,35 @@ class ProjectReadHttpTest extends TestCase
             ['code' => 'SUPER_ADMIN', 'scope' => 'system'],
             ['name' => 'Super Admin'],
         );
+
+        return User::factory()->create(['role_id' => $role->id]);
+    }
+
+    /**
+     * A system-scope SYSTEM_ADMIN. The setUp seeders attach the two
+     * approved project-management permissions to the SYSTEM_ADMIN role,
+     * so an empty permission list yields an actor holding neither.
+     */
+    private function createSystemAdmin(array $permissionCodes): User
+    {
+        $role = Role::query()->firstOrCreate(
+            ['code' => 'SYSTEM_ADMIN', 'scope' => 'system'],
+            ['name' => 'System Admin'],
+        );
+
+        $permissionIds = [];
+
+        foreach ($permissionCodes as $code) {
+            $permission = Permission::query()->firstOrCreate(
+                ['code' => $code],
+                ['name' => ucwords(str_replace(['.', '-'], ' ', $code))],
+            );
+
+            $permissionIds[] = $permission->id;
+        }
+
+        // Give this test user exactly the requested permission set.
+        $role->permissions()->sync($permissionIds);
 
         return User::factory()->create(['role_id' => $role->id]);
     }

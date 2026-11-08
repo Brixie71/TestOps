@@ -59,6 +59,28 @@ class ProjectPolicyAbilitiesTest extends TestCase
         $this->assertFalse(Gate::forUser($systemAdmin)->allows('manageMembers', $project));
     }
 
+    public function test_system_admin_with_ownership_permission_views_projects_without_membership(): void
+    {
+        $systemAdmin = $this->createSystemAdminWithPermission('projects.manage-ownership');
+
+        $project = Project::factory()->create();
+        $unowned = Project::factory()->withoutOwner()->create();
+
+        $this->assertTrue(Gate::forUser($systemAdmin)->allows('view', $project));
+        $this->assertTrue(Gate::forUser($systemAdmin)->allows('view', $unowned));
+    }
+
+    public function test_system_admin_with_membership_permission_views_projects_without_membership(): void
+    {
+        $systemAdmin = $this->createSystemAdminWithPermission('projects.manage-members');
+
+        $project = Project::factory()->create();
+        $unowned = Project::factory()->withoutOwner()->create();
+
+        $this->assertTrue(Gate::forUser($systemAdmin)->allows('view', $project));
+        $this->assertTrue(Gate::forUser($systemAdmin)->allows('view', $unowned));
+    }
+
     public function test_membership_and_ownership_permissions_do_not_grant_each_other(): void
     {
         $systemAdmin = User::factory()->create();

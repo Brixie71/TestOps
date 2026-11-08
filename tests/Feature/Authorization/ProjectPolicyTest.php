@@ -194,6 +194,48 @@ class ProjectPolicyTest extends TestCase
         );
     }
 
+    public function test_system_admin_with_system_management_permissions_views_projects_without_membership(): void
+    {
+        $project = Project::factory()->create();
+        $unowned = Project::factory()->withoutOwner()->create();
+
+        $systemAdminRole = $this->createRole('System Admin', 'SYSTEM_ADMIN', 'system');
+
+        // The approved system-level permissions, reusing the EXISTING
+        // permission records — no new permission is created.
+        $systemAdminRole->permissions()->attach([
+            $this->createPermission('projects.manage-members')->id,
+            $this->createPermission('projects.manage-ownership')->id,
+        ]);
+
+        $systemAdmin = User::factory()->create();
+
+        $this->assignRole($systemAdmin, $systemAdminRole);
+
+        $this->assertTrue(Gate::forUser($systemAdmin)->allows('view', $project));
+        $this->assertTrue(Gate::forUser($systemAdmin)->allows('view', $unowned));
+    }
+
+    public function test_system_admin_without_system_management_permissions_cannot_view_cross_project(): void
+    {
+        $project = Project::factory()->create();
+
+        $systemAdminRole = $this->createRole('System Admin', 'SYSTEM_ADMIN', 'system');
+
+        $systemAdmin = User::factory()->create();
+
+        $this->assignRole($systemAdmin, $systemAdminRole);
+
+        // No system grants: membership is still required for viewing.
+        $this->assertFalse(Gate::forUser($systemAdmin)->allows('view', $project));
+
+        // An unrelated system permission never grants project viewing.
+        $systemAdminRole->permissions()->attach($this->createPermission('users.deactivate')->id);
+        $systemAdmin->refresh();
+
+        $this->assertFalse(Gate::forUser($systemAdmin)->allows('view', $project));
+    }
+
     private function createProjectMember(string $permissionCode): array
     {
         $project = Project::factory()->create();

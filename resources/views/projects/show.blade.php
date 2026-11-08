@@ -204,7 +204,7 @@
                     @if (! $owner && ($can['assign_owner'] ?? false))
                         <button type="button" data-dialog-target="dialog-assign-owner" class="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">Assign owner</button>
                     @endif
-                    @if ($owner && ! $ownerDeactivated && ($can['transfer_owner'] ?? false))
+                    @if ($can['transfer_owner'] ?? false)
                         <button type="button" data-dialog-target="dialog-transfer-owner" class="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">Transfer owner</button>
                     @endif
                     @if ($owner && ! $ownerDeactivated && ($can['change_assignment_type'] ?? false))
