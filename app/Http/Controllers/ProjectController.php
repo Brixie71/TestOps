@@ -3,36 +3,68 @@
 namespace App\Http\Controllers;
 
 use App\Models\Project;
+use App\Models\Role;
+use App\Models\User;
+use App\Services\Authorization\PermissionChecker;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 
+/**
+ * Read layer for the Projects module: the Projects directory and the
+ * project details page.
+ *
+ * Authorization and visibility are backend-enforced: the policy is the
+ * boundary for show(), and the directory is scoped per role in index().
+ * The $can flags passed to the view gate UI affordances ONLY — the
+ * mutation actions and controllers still enforce every request.
+ */
 class ProjectController extends Controller
 {
+    public function __construct(
+        private readonly PermissionChecker $permissionChecker,
+    ) {}
+
     public function index(Request $request): View
     {
         $search = $request->query('search');
 
         $projects = Project::query()
-            // ADAPT (items 3, 4): eager-load the owner relation (withTrashed
-            // only if User uses SoftDeletes) and whatever carries ownership
-            // type/status, matching your existing schema.
+            // Soft-deleted owners stay resolvable: the directory must render
+            // the amber "Deactivated" chip, never "No Admin Assigned".
             ->with(['owner' => fn ($q) => $q->withTrashed()])
-            // Visibility: ADAPT to your existing authorization service —
-            // SUPER_ADMIN/SYSTEM_ADMIN see all; others see member projects only.
-            // ->when(! $request->user()->hasRole('SUPER_ADMIN'), ...)
-            ->when($search !== null && $search !== '', function ($query) use ($search): void {
+            ->when(! $this->permissionChecker->isSuperAdmin($request->user()), function (Builder $query) use ($request): void {
+                $viewRoleIds = Role::query()
+                    ->where('scope', 'project')
+                    ->whereHas('permissions', fn (Builder $permissionQuery) => $permissionQuery->where('code', 'projects.view'))
+                    ->select('id');
+
+                $query->where(function (Builder $query) use ($request, $viewRoleIds): void {
+                    // Mirrors ProjectPolicy::view() for non-Super-Admins:
+                    // owner OR member whose project-scoped role grants
+                    // projects.view.
+                    $query
+                        ->where('owner_id', $request->user()->getKey())
+                        ->orWhereHas('members', function (Builder $memberQuery) use ($request, $viewRoleIds): void {
+                            $memberQuery
+                                ->whereKey($request->user()->getKey())
+                                ->whereIn('project_user.role_id', $viewRoleIds);
+                        });
+                });
+            })
+            ->when($search !== null && $search !== '', function (Builder $query) use ($search): void {
                 $term = '%'.mb_strtolower($search).'%';
 
-                $query->where(function ($query) use ($term): void {
-                    // ADAPT: confirm searchable columns (name + code assumed).
+                $query->where(function (Builder $query) use ($term): void {
                     $query
                         ->whereRaw('LOWER(name) LIKE ?', [$term])
                         ->orWhereRaw('LOWER(code) LIKE ?', [$term]);
                 });
             })
             ->orderBy('name')
-            ->paginate()
+            ->paginate(15)
             ->withQueryString();
 
         return view('projects.index', [
@@ -43,36 +75,70 @@ class ProjectController extends Controller
 
     public function show(Request $request, Project $project): View
     {
-        // ADAPT: authorize via your existing policy/service. Guests never get
-        // here (auth middleware); unauthorized users should abort(403).
+        // Policy is the authorization boundary: unauthorized authenticated
+        // users abort(403); guests never reach this.
+        Gate::authorize('view', $project);
 
-        $user = Auth::user();
+        $project->load(['owner' => fn ($q) => $q->withTrashed()]);
+
+        // Active membership display: the SoftDeletes global scope on the
+        // related User model already excludes soft-deleted members.
+        $members = $project->members()
+            ->orderBy('users.name')
+            ->paginate(15)
+            ->withQueryString();
+
+        // Keyed by id: the member table resolves its project role through
+        // $member->pivot->role_id (no projectRole accessor exists).
+        $projectRoles = Role::query()
+            ->where('scope', 'project')
+            ->orderBy('name')
+            ->get();
+
+        // Eligible add-member candidates mirror ProjectMembershipRules:
+        // active, non-soft-deleted accounts that are not already members.
+        $eligibleUsers = User::query()
+            ->where('account_status', 'active')
+            ->whereNotIn('id', function (QueryBuilder $query) use ($project): void {
+                $query->select('user_id')->from('project_user')->where('project_id', $project->getKey());
+            })
+            ->orderBy('name')
+            ->get();
+
+        // Eligible ownership candidates mirror assertEligibleOwner():
+        // active members holding the canonical PROJECT_ADMIN project role.
+        $adminRole = $projectRoles->firstWhere('code', 'PROJECT_ADMIN');
+
+        $eligibleOwners = $adminRole === null
+            ? collect()
+            : $project->members()
+                ->where('users.account_status', 'active')
+                ->wherePivot('role_id', $adminRole->getKey())
+                ->orderBy('users.name')
+                ->get();
+
+        $ownerActive = ($owner = $project->owner) !== null && ! $owner->trashed();
+
+        $can = [
+            // Adding a member always assigns a project role, so the view
+            // affordance requires BOTH abilities (mirrors the action gate).
+            'add_member' => Gate::allows('manageMembers', $project) && Gate::allows('assignRoles', $project),
+            'change_member_role' => Gate::allows('assignRoles', $project),
+            'remove_member' => Gate::allows('manageMembers', $project),
+            'assign_owner' => Gate::allows('manageOwnership', $project) && $project->owner_id === null,
+            'transfer_owner' => Gate::allows('manageOwnership', $project) && $ownerActive,
+            'unassign_owner' => Gate::allows('manageOwnership', $project) && $project->owner_id !== null,
+            'change_assignment_type' => Gate::allows('manageOwnership', $project) && $ownerActive,
+            'toggle_auto_assignment' => Gate::allows('manageOwnership', $project),
+        ];
 
         return view('projects.show', [
             'project' => $project,
-
-            // ADAPT (item 7, 8, 10): paginate members; resolve each member's
-            // project role and job title per your pivot shape.
-            'members' => $project->members()->paginate()->withQueryString(),
-
-            // ADAPT (item 10): eligible ACTIVE members for adding, eligible
-            // candidates for ownership, and the project's assignable roles.
-            'eligibleUsers' => collect(),
-            'eligibleOwners' => collect(),
-            'projectRoles' => collect(),
-
-            // ADAPT (item 9): resolve from existing policies/gates. Keys gate
-            // UI affordances only — the mutation controllers still enforce.
-            'can' => [
-                'add_member' => false,
-                'change_member_role' => false,
-                'remove_member' => false,
-                'assign_owner' => false,
-                'transfer_owner' => false,
-                'unassign_owner' => false,
-                'change_assignment_type' => false,
-                'toggle_auto_assignment' => false,
-            ],
+            'members' => $members,
+            'projectRoles' => $projectRoles,
+            'eligibleUsers' => $eligibleUsers,
+            'eligibleOwners' => $eligibleOwners,
+            'can' => $can,
         ]);
     }
 }

@@ -4,9 +4,11 @@
 ])
 
 <div class="px-5 py-14 text-center">
-    <span class="mx-auto flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500">
-        {{ $icon }}
-    </span>
+    @isset($icon)
+        <span class="mx-auto flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500">
+            {{ $icon }}
+        </span>
+    @endisset
 
     <h3 class="mt-4 text-sm font-semibold text-slate-900 dark:text-white">{{ $heading }}</h3>
 

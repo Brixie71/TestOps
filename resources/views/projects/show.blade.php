@@ -67,7 +67,7 @@
                         <dt class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Ownership assignment</dt>
                         <dd class="mt-1.5">
                             @if ($owner && ! $ownerDeactivated)
-                                <x-projects.ownership-badge :state="$project->ownership_type" />
+                                <x-projects.ownership-badge :state="$project->owner_assignment_type" />
                             @elseif ($ownerDeactivated)
                                 <span class="text-sm text-slate-500 dark:text-slate-400">Retained — owner is deactivated</span>
                             @else
@@ -78,8 +78,8 @@
                     <div>
                         <dt class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Automatic owner assignment</dt>
                         <dd class="mt-1.5 text-sm">
-                            <span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium {{ ($project->auto_assign_owner) ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-500/10 dark:text-emerald-400' : 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400' }}">
-                                {{ ($project->auto_assign_owner) ? 'Enabled' : 'Disabled' }}
+                            <span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium {{ ($project->auto_assign_representative_owner) ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-500/10 dark:text-emerald-400' : 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400' }}">
+                                {{ ($project->auto_assign_representative_owner) ? 'Enabled' : 'Disabled' }}
                             </span>
                         </dd>
                     </div>
@@ -121,8 +121,9 @@
                             <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
                                 @foreach ($members as $member)
                                     @php
-                                        // ADAPT (items 7, 8): role accessor and job title source per your pivot/schema.
-                                        $roleName = $member->projectRole?->name ?? '—';
+                                        // Pivot exposes role_id; the project-roles map is
+                                        // keyed by id and provided by the controller.
+                                        $roleName = $projectRoles->get($member->pivot->role_id)?->name ?? '—';
                                         $jobTitle = $member->job_title ?? $member->department ?? null;
                                     @endphp
                                     <tr class="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
@@ -139,10 +140,10 @@
                                             <td class="px-5 py-4">
                                                 <div class="flex justify-end gap-1">
                                                     @if ($can['change_member_role'] ?? false)
-                                                        <button type="button" data-dialog-target="dialog-change-role" data-user-id="{{ $member->id }}" data-member-name="{{ $member->name }}" class="rounded-lg px-2.5 py-1.5 text-xs font-medium text-indigo-600 transition-colors hover:bg-indigo-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-indigo-400 dark:hover:bg-indigo-500/10">Change role</button>
+                                                        <button type="button" data-dialog-target="dialog-change-role" data-member-key="{{ $member->id }}" data-member-name="{{ $member->name }}" class="rounded-lg px-2.5 py-1.5 text-xs font-medium text-indigo-600 transition-colors hover:bg-indigo-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-indigo-400 dark:hover:bg-indigo-500/10">Change role</button>
                                                     @endif
                                                     @if ($can['remove_member'] ?? false)
-                                                        <button type="button" data-dialog-target="dialog-remove-member" data-user-id="{{ $member->id }}" data-member-name="{{ $member->name }}" class="rounded-lg px-2.5 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:text-red-400 dark:hover:bg-red-500/10">Remove</button>
+                                                        <button type="button" data-dialog-target="dialog-remove-member" data-member-key="{{ $member->id }}" data-member-name="{{ $member->name }}" class="rounded-lg px-2.5 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:text-red-400 dark:hover:bg-red-500/10">Remove</button>
                                                     @endif
                                                 </div>
                                             </td>
@@ -189,12 +190,12 @@
                     </div>
                     <div class="flex flex-wrap items-center gap-2">
                         @if ($owner && ! $ownerDeactivated)
-                            <x-projects.ownership-badge :state="$project->ownership_type" />
+                            <x-projects.ownership-badge :state="$project->owner_assignment_type" />
                         @elseif ($ownerDeactivated)
                             <span class="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 dark:border-amber-900/70 dark:bg-amber-500/10 dark:text-amber-400">Deactivated</span>
                         @endif
                         <span class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
-                            Auto-assignment: {{ ($project->auto_assign_owner) ? 'Enabled' : 'Disabled' }}
+                            Auto-assignment: {{ ($project->auto_assign_representative_owner) ? 'Enabled' : 'Disabled' }}
                         </span>
                     </div>
                 </div>
@@ -218,7 +219,7 @@
                 </div>
             </div>
 
-            @if ($owner && ($project->ownership_type ?? null) === 'temporary')
+            @if ($owner && $project->owner_assignment_type === 'temporary')
                 <p class="mt-2 text-xs text-slate-400 dark:text-slate-500">
                     Temporary ownership remains in effect until changed. There is no automatic expiration.
                 </p>
@@ -228,78 +229,121 @@
 
     {{-- ================================================================
          Mutation dialogs — all POST to existing backend routes.
-         Field names are contract assumptions (see verify table).
+         Field names match the backend contract: user_id, role_id,
+         assignment_type, enabled, reason (max 500). Change-role and
+         remove-member carry the target as the {member} route param, so
+         their forms use a server-side URL template rewritten by the
+         script. All dialogs stay in the DOM and are CSS-hidden.
     ================================================================= --}}
 
-    <x-projects.dialogs.add-member />
-    <x-projects.dialogs.change-role />
-    <x-projects.dialogs.remove-member />
-    <x-projects.dialogs.assign-owner />
-    <x-projects.dialogs.transfer-owner />
-    <x-projects.dialogs.unassign-owner />
-    <x-projects.dialogs.assignment-type />
-    <x-projects.dialogs.auto-assignment />
+    @if ($can['add_member'] ?? false)
+        <x-projects.dialogs.add-member :project="$project" :eligible-users="$eligibleUsers" :project-roles="$projectRoles" />
+    @endif
+    @if ($can['change_member_role'] ?? false)
+        <x-projects.dialogs.change-role :project="$project" :project-roles="$projectRoles" />
+    @endif
+    @if ($can['remove_member'] ?? false)
+        <x-projects.dialogs.remove-member :project="$project" />
+    @endif
+    @if ($can['assign_owner'] ?? false)
+        <x-projects.dialogs.assign-owner :project="$project" :eligible-owners="$eligibleOwners" />
+    @endif
+    @if ($can['transfer_owner'] ?? false)
+        <x-projects.dialogs.transfer-owner :project="$project" :eligible-owners="$eligibleOwners" />
+    @endif
+    @if ($can['unassign_owner'] ?? false)
+        <x-projects.dialogs.unassign-owner :project="$project" />
+    @endif
+    @if ($can['change_assignment_type'] ?? false)
+        <x-projects.dialogs.assignment-type :project="$project" />
+    @endif
+    @if ($can['toggle_auto_assignment'] ?? false)
+        <x-projects.dialogs.auto-assignment :project="$project" />
+    @endif
 
-    <script>
-        (function () {
-            var lastTrigger = null;
+        <script>
+            (function () {
+                var lastTrigger = null;
 
-            function openDialog(root, trigger) {
-                lastTrigger = trigger || null;
-                root.classList.remove('hidden');
-                document.body.style.overflow = 'hidden';
+                // Server-side URL template forms (change-role/remove-member)
+                // post to the {member} route: the template (including the
+                // literal __MEMBER__ placeholder) is generated in Blade, and
+                // the script replaces the placeholder with the member key.
+                // After a validation failure the dialog reopens server-side
+                // and the key is restored from old('dialog_member').
+                var MEMBER_PLACEHOLDER = '__MEMBER__';
 
-                // Populate per-member context from trigger data attributes.
-                if (trigger) {
-                    root.querySelectorAll('[data-fill="user-id"]').forEach(function (el) { el.value = trigger.dataset.userId || ''; });
-                    root.querySelectorAll('[data-fill="member-name"]').forEach(function (el) { el.textContent = trigger.dataset.memberName || ''; });
+                function rewriteAction(root, memberKey) {
+                    root.querySelectorAll('form[data-action-template]').forEach(function (form) {
+                        var field = root.querySelector('[data-fill="member-key"]');
+                        var key = memberKey !== undefined && memberKey !== null && memberKey !== ''
+                            ? memberKey
+                            : (field ? field.value : '');
+                        form.setAttribute('action', form.getAttribute('data-action-template').replace(MEMBER_PLACEHOLDER, key));
+                    });
                 }
 
-                var focusable = root.querySelector('input:not([type=hidden]), select, textarea, button:not([data-dialog-close])');
-                (focusable || root.querySelector('button')).focus();
-            }
+                function openDialog(root, trigger) {
+                    lastTrigger = trigger || null;
+                    root.classList.remove('hidden');
+                    document.body.style.overflow = 'hidden';
 
-            function closeDialog(root) {
-                root.classList.add('hidden');
-                document.body.style.overflow = '';
-                if (lastTrigger) { lastTrigger.focus(); lastTrigger = null; }
-            }
+                    // Populate per-member context from trigger data attributes.
+                    if (trigger) {
+                        root.querySelectorAll('[data-fill="member-key"]').forEach(function (el) { el.value = trigger.dataset.memberKey || ''; });
+                        root.querySelectorAll('[data-fill="member-name"]').forEach(function (el) { el.textContent = trigger.dataset.memberName || ''; });
+                        rewriteAction(root, trigger.dataset.memberKey);
+                    }
 
-            document.addEventListener('click', function (event) {
-                var trigger = event.target.closest('[data-dialog-target]');
-                if (trigger) {
-                    var root = document.getElementById(trigger.getAttribute('data-dialog-target'));
-                    if (root) { openDialog(root, trigger); }
-                    return;
+                    var focusable = root.querySelector('input:not([type=hidden]), select, textarea, button:not([data-dialog-close])');
+                    (focusable || root.querySelector('button')).focus();
                 }
-                if (event.target.closest('[data-dialog-close]')) {
-                    var open = event.target.closest('[role="dialog"]');
-                    if (open) { closeDialog(open); }
+
+                function closeDialog(root) {
+                    root.classList.add('hidden');
+                    document.body.style.overflow = '';
+                    if (lastTrigger) { lastTrigger.focus(); lastTrigger = null; }
                 }
-            });
 
-            document.addEventListener('keydown', function (event) {
-                var open = document.querySelector('[role="dialog"]:not(.hidden)');
-                if (! open) { return; }
+                document.addEventListener('click', function (event) {
+                    var trigger = event.target.closest('[data-dialog-target]');
+                    if (trigger) {
+                        var root = document.getElementById(trigger.getAttribute('data-dialog-target'));
+                        if (root) { openDialog(root, trigger); }
+                        return;
+                    }
+                    if (event.target.closest('[data-dialog-close]')) {
+                        var open = event.target.closest('[role="dialog"]');
+                        if (open) { closeDialog(open); }
+                    }
+                });
 
-                if (event.key === 'Escape') { closeDialog(open); return; }
+                document.addEventListener('keydown', function (event) {
+                    var open = document.querySelector('[role="dialog"]:not(.hidden)');
+                    if (! open) { return; }
 
-                if (event.key === 'Tab') {
-                    var focusables = Array.prototype.filter.call(
-                        open.querySelectorAll('button, input, select, textarea, a[href]'),
-                        function (el) { return ! el.disabled; }
-                    );
-                    if (focusables.length === 0) { return; }
-                    var first = focusables[0];
-                    var last = focusables[focusables.length - 1];
-                    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
-                    else if (! event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+                    if (event.key === 'Escape') { closeDialog(open); return; }
+
+                    if (event.key === 'Tab') {
+                        var focusables = Array.prototype.filter.call(
+                            open.querySelectorAll('button, input, select, textarea, a[href]'),
+                            function (el) { return ! el.disabled; }
+                        );
+                        if (focusables.length === 0) { return; }
+                        var first = focusables[0];
+                        var last = focusables[focusables.length - 1];
+                        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+                        else if (! event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+                    }
+                });
+
+                // Server-rendered reopen after validation failure: lock scroll
+                // immediately and restore the member-key action template.
+                var rendered = document.querySelector('[role="dialog"]:not(.hidden)');
+                if (rendered) {
+                    rewriteAction(rendered);
+                    document.body.style.overflow = 'hidden';
                 }
-            });
-
-            // Server-rendered reopen after validation failure: lock scroll immediately.
-            var rendered = document.querySelector('[role="dialog"]:not(.hidden)');
-            if (rendered) { document.body.style.overflow = 'hidden'; }
-        })();
-    </script>
+            })();
+        </script>
 @endsection

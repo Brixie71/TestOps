@@ -37,14 +37,11 @@ Route::middleware('auth')->group(function () {
         Route::view('dashboard', 'dashboard.index')->name('dashboard');
     });
 
-    // Individual project read pages. Interim lock (Decision E): until
-    // ProjectController gains its real visibility scope in index() and an
-    // authorization call in show(), exposing these routes to every
-    // authenticated user would leak all projects and member data. The
-    // super.admin middleware is the cheapest lock with existing
-    // infrastructure; remove it when the real scope lands (OpenCode's first
-    // implementation task).
-    Route::middleware('super.admin')->group(function (): void {
+    // Individual project read pages. Visibility is backend-enforced: index()
+    // scopes the directory per role and show() gates through project:view
+    // (owner, or member with the projects.view permission). super.admin
+    // access stays available to Super Admins via the permission checker.
+    Route::middleware('active.account')->group(function (): void {
         Route::get('projects', [ProjectController::class, 'index'])->name('projects.index');
         Route::get('projects/{project}', [ProjectController::class, 'show'])->name('projects.show');
     });

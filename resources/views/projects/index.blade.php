@@ -120,7 +120,7 @@
                                                         Deactivated
                                                     </span>
                                                 @else
-                                                    <x-projects.ownership-badge :state="$project->ownership_type" />
+                                                    <x-projects.ownership-badge :state="$project->owner_assignment_type" />
                                                 @endif
                                             </div>
                                         @else
