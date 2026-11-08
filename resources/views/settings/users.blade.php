@@ -72,6 +72,7 @@
                             <option value="" @selected($status === null || $status === '')>All statuses</option>
                             <option value="invited" @selected($status === 'invited')>Invited</option>
                             <option value="active" @selected($status === 'active')>Active</option>
+                            <option value="deactivated" @selected($status === 'deactivated')>Deactivated</option>
                         </select>
                     </div>
 
@@ -114,12 +115,22 @@
                                 <th scope="col" class="px-5 py-3">Email</th>
                                 <th scope="col" class="px-5 py-3">System role</th>
                                 <th scope="col" class="px-5 py-3">Status</th>
+                                <th scope="col" class="px-5 py-3"><span class="sr-only">Actions</span></th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
                             @foreach ($users as $user)
                                 @php
                                     $initial = mb_strtoupper(mb_substr(trim((string) $user->name), 0, 1)) ?: 'U';
+
+                                    // Mirror the server-side eligibility rules: only
+                                    // Super Admins (or actors managing non-protected
+                                    // targets) see lifecycle controls for a row.
+                                    $targetRole = $user->role;
+                                    $targetProtected = $targetRole !== null
+                                        && $targetRole->scope === 'system'
+                                        && in_array($targetRole->code, ['SUPER_ADMIN', 'SYSTEM_ADMIN'], true);
+                                    $lifecycleAllowed = $canManageAll || ! $targetProtected;
                                 @endphp
                                 <tr class="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                                     <td class="px-5 py-4">
@@ -145,7 +156,12 @@
                                         @endif
                                     </td>
                                     <td class="px-5 py-4">
-                                        @if ($user->account_status === 'active')
+                                        @if ($user->trashed())
+                                            <span class="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
+                                                <span class="h-1.5 w-1.5 rounded-full bg-slate-400" aria-hidden="true"></span>
+                                                Deactivated
+                                            </span>
+                                        @elseif ($user->account_status === 'active')
                                             <span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-500/10 dark:text-emerald-400">
                                                 <span class="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true"></span>
                                                 Active
@@ -159,6 +175,48 @@
                                             <span class="text-slate-500 dark:text-slate-400">
                                                 {{ ucfirst((string) $user->account_status) ?: 'Unknown' }}
                                             </span>
+                                        @endif
+                                    </td>
+                                    <td class="px-5 py-4">
+                                        @if ($user->trashed() && $lifecycleAllowed)
+                                            {{-- Reactivate a deactivated account. --}}
+                                            <form method="POST" action="{{ route('settings.users.reactivate', $user->id) }}">
+                                                @csrf
+                                                <button
+                                                    type="submit"
+                                                    class="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-white"
+                                                >
+                                                    Reactivate
+                                                </button>
+                                            </form>
+                                        @elseif (! $user->trashed() && ! $user->is(auth()->user()) && $lifecycleAllowed)
+                                            {{-- Deactivate an eligible account; the reason is required server-side. --}}
+                                            <details class="group">
+                                                <summary class="inline-flex cursor-pointer list-none items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-white">
+                                                    Deactivate
+                                                </summary>
+                                                <form method="POST" action="{{ route('settings.users.deactivate', $user->id) }}" class="mt-2 flex flex-col gap-2">
+                                                    @csrf
+                                                    <label for="deactivation-reason-{{ $user->id }}" class="sr-only">Deactivation reason for {{ $user->name }}</label>
+                                                    <textarea
+                                                        id="deactivation-reason-{{ $user->id }}"
+                                                        name="reason"
+                                                        rows="2"
+                                                        maxlength="500"
+                                                        required
+                                                        placeholder="Reason (required)"
+                                                        class="block w-full min-w-56 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"></textarea>
+                                                    @error('reason')
+                                                        <p class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>
+                                                    @enderror
+                                                    <button
+                                                        type="submit"
+                                                        class="inline-flex items-center justify-center rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700 transition-colors hover:bg-rose-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 dark:border-rose-900/70 dark:bg-rose-500/10 dark:text-rose-400 dark:hover:bg-rose-500/20"
+                                                    >
+                                                        Confirm deactivation
+                                                    </button>
+                                                </form>
+                                            </details>
                                         @endif
                                     </td>
                                 </tr>

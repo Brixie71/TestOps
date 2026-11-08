@@ -2,11 +2,21 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
+// Ownership (owner_id) and the automatic-assignment setting are
+// deliberately not mass-assignable; they are controlled through the
+// factory's forceFill and future authorized ownership workflows.
+#[Fillable([
+    'name',
+    'code',
+    'description',
+    'status',
+])]
 class Project extends Model
 {
     use HasFactory;
@@ -33,5 +43,17 @@ class Project extends Model
             ->withPivot('role_id') // Includes the membership's assigned role
             ->withTimestamps(); // Reads and maintains pivot timestamps
 
+    }
+
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'auto_assign_representative_owner' => 'boolean',
+        ];
     }
 }
