@@ -199,11 +199,24 @@ class UserLifecycleHttpTest extends TestCase
         $actor = $this->createSuperAdmin();
         $other = User::factory()->create();
 
-        $this->actingAs($actor)
-            ->get(route('settings.users'))
-            ->assertOk()
-            ->assertSee('settings/users/'.$other->getKey().'/deactivate')
-            ->assertDontSee('settings/users/'.$actor->getKey().'/deactivate');
+        $response = $this->actingAs($actor)
+            ->get(route('settings.users'));
+
+        $response->assertOk()
+            // Deactivation is offered through a shared dialog: each eligible
+            // row renders a trigger carrying the target id, and the concrete
+            // deactivate URL is assembled client-side from the action
+            // template — so assertions use the per-row marker attributes.
+            ->assertSee('data-dialog-target="dialog-deactivate-user"', false)
+            ->assertSee('data-user-id="'.$other->getKey().'"', false)
+            ->assertDontSee('data-user-id="'.$actor->getKey().'"', false);
+
+        // Exactly one shared deactivation dialog is rendered, regardless of
+        // how many eligible rows exist.
+        $this->assertSame(
+            1,
+            substr_count($response->getContent(), 'id="dialog-deactivate-user"'),
+        );
     }
 
     public function test_system_admin_with_the_permission_can_access_the_directory(): void
@@ -306,12 +319,17 @@ class UserLifecycleHttpTest extends TestCase
 
     private function assertSeeLifecycleControls($response, int $userId, bool $visible): void
     {
-        $deactivateUrl = 'settings/users/'.$userId.'/deactivate';
+        // The directory renders a per-row dialog trigger carrying the target
+        // id; the deactivate URL is assembled client-side from the shared
+        // dialog's action template, so visibility asserts on the marker.
+        // The closing quote makes the marker collision-safe: it cannot
+        // substring-match a different id (e.g. "2" inside "23").
+        $marker = 'data-user-id="'.$userId.'"';
 
         if ($visible) {
-            $response->assertSee($deactivateUrl, false);
+            $response->assertSee($marker, false);
         } else {
-            $response->assertDontSee($deactivateUrl, false);
+            $response->assertDontSee($marker, false);
         }
     }
 
