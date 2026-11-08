@@ -318,6 +318,24 @@ Existing approved service authorization policy:
 
 Do not change these policies without explicit approval.
 
+### Existing OAuth Services and Revocation Ownership
+
+- `App\Services\Authorization\OAuthScopes` — the centralized scope registry,
+  registered only through `Passport::tokensCan(OAuthScopes::definitions())`.
+- `App\Services\Authorization\ServiceClientAuthorizer` — machine-client
+  authorization: fresh active-client lookup plus the provisioned
+  application-level permission check.
+- `App\Services\Auth\RevokesUserCredentials::revokeForUser($userId)` — the
+  only user-bound credential revocation point. It bulk-revokes the user's
+  active access tokens, their linked refresh tokens (including refresh
+  tokens linked to already-revoked access tokens), and outstanding
+  authorization codes; returns the three aggregate counts
+  (`access_tokens`, `refresh_tokens`, `authorization_codes`) and nothing
+  else; owns no transaction and writes no audit log (the caller owns both);
+  never touches client-credentials/machine tokens (`user_id = null`). It is
+  reused for future user lifecycle work — do not re-derive revocation
+  queries inline.
+
 ## Testing and Regression Workflow
 
 When implementing changes:

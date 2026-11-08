@@ -19,7 +19,9 @@ current uncommitted changes".
    documenting anything as done. Never document unimplemented functionality as
    completed.
 2. Inventory the documentation surface that may be affected: `README.md`,
-   `AGENTS.md`, `.ai/rules/*.md`, `.ai/guides/*.md`, and `.opencode/commands/README.md`.
+   `AGENTS.md`, `.ai/rules/*.md` (including `index.md`), `.ai/guides/*.md`,
+   `.agents/skills/*/SKILL.md`, `docs/*.md`, and `.opencode/commands/**.md`
+   (the `README.md` inventory and every slash-command template).
 3. Update accurately:
    - Record newly implemented behavior with the files that implement it.
    - Keep instructions, commands, and rule indexes consistent with reality

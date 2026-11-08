@@ -861,7 +861,7 @@ Do not modify applied migrations.
 - Use normalized email addresses for uniqueness.
 - Protect built-in Super Admin role and permissions.
 - Avoid adding unapproved domain models.
-- API authentication remains undecided. Do not assume Sanctum.
+- API authentication is Passport OAuth (machine and human OAuth tokens; see docs/oauth-service-authorization.md). Do not assume Sanctum.
 
 # 19. Implementation and Verification Workflow
 
@@ -925,5 +925,13 @@ The User Management module is complete only when:
 - Deferred decisions are documented.
 
 **Current status:** Requirements consolidation completed. Database schema design and implementation remain pending.
+
+**Stage 3B implementation status (user deactivation / reactivation):**
+- Deactivation (`App\Actions\DeactivateUserAction`) uses SoftDeletes only — no new `account_status` value; requires a non-empty reason (max 500 chars); protects the last active Super Admin; revokes user-bound OAuth credentials via `App\Services\Auth\RevokesUserCredentials`; purges only the target user's database sessions on the configured session connection/table; audits `user.deactivated` and `oauth.credentials.revoked` (aggregate counts only, no credential IDs or secrets) inside the lifecycle transaction. The transaction first locks the canonical SUPER_ADMIN system role row (`code = SUPER_ADMIN`, `scope = system`) with `lockForUpdate()` and reloads the target (including soft-deleted rows) and the actor from the database under the lock, so stale pre-transaction models can never drive the checks — the serialization root for the last-active-Super-Admin safeguard (fails closed if the row is missing; SQLite compiles the lock as a no-op, real concurrency is only enforced on PostgreSQL/MySQL).
+- Reactivation (`App\Actions\ReactivateUserAction`) restores soft-deleted accounts, preserves their existing `account_status` (invited accounts are not activated), never restores revoked credentials or old sessions, and audits `user.reactivated` inside the transaction. It serializes on the same canonical SUPER_ADMIN role row as deactivation (reactivation changes the active Super Admin count, so it acquires the same `lockForUpdate()` and fails closed when the row is missing) and reloads the target (including soft-deleted rows) and the actor under the lock before the authorization and eligibility checks; no last-active-Super-Admin restriction applies because reactivation can only increase the count.
+- Authorization (server-side, `App\Services\Users\UserLifecycleAuthorizer` on `PermissionChecker`): `users.deactivate` is seeded to SYSTEM_ADMIN via `UserManagementPermissionSeeder`; SUPER_ADMIN unrestricted; project-scoped roles never grant lifecycle authority; SYSTEM_ADMIN cannot manage SUPER_ADMIN or other SYSTEM_ADMIN accounts; self-deactivation/reactivation denied; last active SUPER_ADMIN protected.
+- Database connection consistency: `App\Services\Users\LifecycleConnectionGuard` fails closed before any lifecycle transaction unless lifecycle, session (null→default), and Passport (null→default) connections resolve to one connection, keeping all changes transactionally atomic.
+- `EnsureActiveAccount` middleware (alias `active.account`) logs out soft-deleted or non-`active` accounts on authenticated web routes (after `auth`; never on login/logout/invitation paths), invalidating the session and regenerating the CSRF token.
+- Deferred by approved decision: pending email-change cancellation (no email-change module exists; integrate when it is implemented), deactivation notification delivery (no user-notification workflow yet; never send email/network work inside lifecycle transactions), permanent deletion (out of scope; `projects.owner_id` restriction remains; no automatic ownership transfer). Email-address history and reservation records are preserved during deactivation.
 
 **No code or database changes are authorized by this document alone.**

@@ -1,5 +1,6 @@
 ---
 paths:
+  - 'app/Services/Auth/**'
   - 'app/Services/Authorization/**'
   - 'app/Http/Middleware/**'
   - 'app/Http/Resources/**'
@@ -52,6 +53,11 @@ client-credentials tokens, 7-day refresh tokens.
   their associated refresh tokens.
 - Future account deactivation must revoke the user's access and refresh
   tokens when that lifecycle transition is formally approved and implemented.
+- User-bound revocation exists once, through
+  `App\Services\Auth\RevokesUserCredentials::revokeForUser()`: bulk updates,
+  aggregate counts only, caller-owned transaction, no audit logging inside,
+  machine tokens untouched. Reuse it; never create duplicate revocation
+  services or inline query copies.
 - User lifecycle changes and associated token revocation must execute
   transactionally.
 - Ordinary web logout must invalidate only the current web session. It must
@@ -75,8 +81,14 @@ client-credentials tokens, 7-day refresh tokens.
   revocation methods.
 - `ServiceClientAuthorizer` rejects revoked OAuth clients during machine
   authorization.
+- `App\Services\Auth\RevokesUserCredentials` exists as a standalone, tested
+  primitive (`tests/Feature/Services/Auth/RevokesUserCredentialsTest.php`):
+  it bulk-revokes one user's active access tokens, linked refresh tokens
+  (including those under already-revoked access tokens), and outstanding
+  authorization codes, and returns counts only.
 - Full user account lifecycle and OAuth client lifecycle revocation
-  integration is NOT YET IMPLEMENTED.
+  integration is NOT YET IMPLEMENTED; the revocation service above is not
+  referenced by any lifecycle flow.
 - No account-management or OAuth-client-management handlers currently
   exist to integrate these operations with.
 - Do not represent standalone lifecycle services, model observers, or

@@ -179,10 +179,18 @@ same checks without new authorization infrastructure.
 ### 8.2 Pending requirements — user account lifecycle (not implemented)
 
 The following lifecycle revocation requirements are approved for future
-account-management integration. None of them is implemented in this release:
-there are currently no account-management handlers to integrate these
-operations with, and no standalone lifecycle service, observer, or speculative
-automation exists.
+account-management integration. None of them is integrated in this release:
+there are currently no account-management handlers to call them. One
+standalone credential-revocation primitive exists
+(`App\Services\Auth\RevokesUserCredentials`, covered by
+`tests/Feature/Services/Auth/RevokesUserCredentialsTest.php`): it revokes all
+of a user's active access tokens, their linked refresh tokens (including
+refresh tokens linked to already-revoked access tokens), and outstanding
+authorization codes through idempotent bulk updates, returns aggregate counts
+only, opens no transaction, and writes no audit log (the caller owns both).
+It is wired into no lifecycle flow, runs no observer or automation, and
+account lifecycle, client lifecycle, and session handling remain
+unimplemented.
 
 - User soft deletion must revoke all associated OAuth access tokens
   (Passport relationship: `HasApiTokens::tokens()`) and must also revoke the
@@ -198,9 +206,10 @@ automation exists.
 
 Passport supplies the primitives (the user-bound token relationship and
 token-level revocation methods, including `AuthorizedAccessTokenController`);
-TestOps currently wires none of them into an account lifecycle. Until an
-approved account-flow work item adds this integration, do not represent
-lifecycle revocation as done.
+TestOps wires none of them into an account lifecycle. Until an approved
+account-flow work item adds this integration, `App\Services\Auth\RevokesUserCredentials`
+is the approved primitive to reuse, and lifecycle revocation must not be
+represented as done.
 
 ### 8.3 Pending requirements — OAuth client lifecycle (not implemented)
 
@@ -238,7 +247,7 @@ revocation integration is in place:
 - **General System Settings API** — no placeholder controllers or routes
   exist; add them only with an approved specification.
 - **Machine-client write access** — remains disabled in this release. The write scope stays registered but is not required anywhere, and no service permission grants machine writes.
-- **OAuth token lifecycle integration** — pending requirements documented in Sections 8.2 and 8.3; no account-management or OAuth-client-management handlers exist in this release.
+- **OAuth token lifecycle integration** — pending requirements documented in Sections 8.2 and 8.3; no account-management or OAuth-client-management handlers exist in this release; the standalone user-credential revocation primitive from Section 8.2 exists but is integrated nowhere.
 
 ## 10. Test Pointer
 

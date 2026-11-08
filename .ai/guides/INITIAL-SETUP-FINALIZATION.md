@@ -248,7 +248,7 @@ Approved authentication direction:
 - Session invalidation and CSRF token regeneration on logout.
 - Authentication middleware protects private application routes.
 - Password reset is deferred until mail delivery is configured.
-- API authentication remains undecided and must not be assumed.
+- API authentication is Passport OAuth per docs/oauth-service-authorization.md; do not assume Sanctum.
 
 ### 8.1 Routes
 

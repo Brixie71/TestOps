@@ -8,12 +8,21 @@ metadata:
 
 # Passport OAuth2 Authentication
 
+> **TestOps baseline (authoritative: `docs/oauth-service-authorization.md`):**
+> Laravel Passport 13.10.0 with client-credentials and authorization-code
+> (+ PKCE, `S256`) grants only; refresh tokens exist for the
+> authorization-code grant. Device, password, and implicit grants are
+> disabled; personal access tokens and SPA cookie authentication are not
+> used in this release; scheduling `passport:purge` requires explicit
+> operational approval. When guidance in this skill conflicts with the
+> TestOps baseline, the baseline wins.
+
 ## Documentation First
 
 **Always use `search-docs` before writing Passport code.** The documentation covers every grant type, configuration option, and edge case in detail. This skill teaches you how to navigate Passport — the docs have the implementation specifics.
 
 ```
-search-docs(queries: ["Passport installation"], packages: ["laravel/framework@12.x"])
+search-docs(queries: ["Passport installation"], packages: ["laravel/framework@13.x"])
 ```
 
 The Passport docs live under the `laravel/framework` package — not `laravel/passport`.

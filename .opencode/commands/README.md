@@ -61,7 +61,7 @@ blocks are used, so nothing runs outside the permission flow.
 
 | Command | Description | Read-only | Arguments | Example |
 | --- | --- | --- | --- | --- |
-| `/docs/sync` | Update docs and AI rules to match actual implementation | No (docs only) | Scope (optional) | `/docs/sync system settings` |
+| `/docs/sync` | Update docs, AI rules, guides, and agent skills to match actual implementation | No (docs only) | Scope (optional) | `/docs/sync system settings` |
 | `/docs/review` | Find outdated, conflicting, duplicated, or inaccurate documentation | Yes | None | `/docs/review` |
 
 ### Handoff
