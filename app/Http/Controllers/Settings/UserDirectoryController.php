@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
+use App\Models\NotificationDelivery;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\Authorization\PermissionChecker;
@@ -111,6 +113,7 @@ class UserDirectoryController extends Controller
         }
 
         $users = $usersQuery
+            ->with(['invitations' => fn ($query) => $query->latest('id')->limit(1)])
             ->orderBy('users.id')
             ->paginate(50)
             ->withQueryString();
@@ -138,6 +141,74 @@ class UserDirectoryController extends Controller
             'systemRoles' => $systemRoles,
             'departments' => $departments,
             'canManageAll' => $this->permissionChecker->isSuperAdmin($request->user()),
+            'canManageInvitations' => $this->permissionChecker->allows($request->user(), 'users.invitations.manage'),
+            'canAssignRoles' => $this->permissionChecker->allows($request->user(), 'users.roles.assign'),
+        ]);
+    }
+
+    /**
+     * Dedicated user details page: profile, account status, system role,
+     * audit history, recent notification status, and the administrative
+     * actions available to the current actor. Deactivated accounts remain
+     * viewable; active management requires authorization on top of the
+     * route middleware.
+     */
+    public function show(Request $request, string $user): View
+    {
+        $target = User::query()->withTrashed()->with('role')->findOrFail($user);
+
+        $actor = $request->user();
+        $canManageAll = $this->permissionChecker->isSuperAdmin($actor);
+
+        $auditHistory = AuditLog::query()
+            ->where('target_user_id', $target->getKey())
+            ->orderByDesc('id')
+            ->limit(15)
+            ->get();
+
+        $deliveries = NotificationDelivery::query()
+            ->where('user_id', $target->getKey())
+            ->orderByDesc('id')
+            ->limit(5)
+            ->get();
+
+        // Roles eligible for assignment: existing system-scoped roles (§6.1).
+        // The SUPER_ADMIN role is only offered to Super Admin actors.
+        $assignableRoles = Role::query()
+            ->where('scope', 'system')
+            ->orderBy('name')
+            ->get(['id', 'name', 'code'])
+            ->reject(fn (Role $role): bool => $role->code === 'SUPER_ADMIN' && ! $canManageAll);
+
+        $latestInvitation = $target->invitations()->latest('id')->first();
+
+        // Mirror the server-side role-assignment rules so the form only
+        // renders for actors the action would accept: the permission, the
+        // self-change restriction, and the protected-target restrictions.
+        $targetProtected = $target->role !== null
+            && $target->role->scope === 'system'
+            && in_array($target->role->code, ['SUPER_ADMIN', 'SYSTEM_ADMIN'], true);
+        $canAssignRole = $this->permissionChecker->allows($actor, 'users.roles.assign')
+            && ! $actor->is($target)
+            && ($canManageAll || ! $targetProtected)
+            && ! $target->trashed();
+
+        // Mirror the server-side password-management rules (§11.2, §6.5) so
+        // the card only renders for actors the actions would accept.
+        $canManagePassword = $this->permissionChecker->allows($actor, 'users.password.manage')
+            && ! $actor->is($target)
+            && ($canManageAll || ! $targetProtected)
+            && ! $target->trashed();
+
+        return view('settings.user-details', [
+            'target' => $target,
+            'auditHistory' => $auditHistory,
+            'deliveries' => $deliveries,
+            'assignableRoles' => $assignableRoles,
+            'latestInvitation' => $latestInvitation,
+            'canManageAll' => $canManageAll,
+            'canAssignRole' => $canAssignRole,
+            'canManagePassword' => $canManagePassword,
         ]);
     }
 }

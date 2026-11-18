@@ -31,6 +31,18 @@ class AuthenticatedSessionController extends Controller
                 ->onlyInput('email');
         }
 
+        // A forced password reset (§11.3) must be completed through the
+        // emailed single-use link before the account can sign in again.
+        if ($request->user()->password_reset_required) {
+            Auth::logout();
+
+            return back()
+                ->withErrors([
+                    'email' => 'A password reset is required for this account. Use the reset link emailed to you before signing in.',
+                ])
+                ->onlyInput('email');
+        }
+
         $request->session()->regenerate();
 
         return redirect()->intended('/dashboard');

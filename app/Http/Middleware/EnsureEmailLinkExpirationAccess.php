@@ -30,11 +30,25 @@ class EnsureEmailLinkExpirationAccess
     private const OPERATION_WRITE = 'write';
 
     /**
-     * Specify the operation parameter for the middleware.
+     * Human view permission for this middleware instance; defaults to the
+     * existing email-link expiration permission so that the two existing
+     * routes keep their exact behavior.
      */
-    public static function using(string $operation): string
+    private string $viewPermission = self::VIEW_PERMISSION;
+
+    /**
+     * Specify the operation parameter for the middleware, with an optional
+     * alternative view permission for settings families that reuse the same
+     * human/machine authorization rules. The default keeps the existing
+     * email-link expiration view permission.
+     */
+    public static function using(string $operation, ?string $viewPermission = null): string
     {
-        return static::class.':'.$operation;
+        $parameters = $viewPermission === null
+            ? $operation
+            : "{$operation},{$viewPermission}";
+
+        return static::class.':'.$parameters;
     }
 
     /**
@@ -56,8 +70,12 @@ class EnsureEmailLinkExpirationAccess
      *
      * @param  Closure(Request): (Response)  $next
      */
-    public function handle(Request $request, Closure $next, string $operation): Response
+    public function handle(Request $request, Closure $next, string $operation, ?string $viewPermission = null): Response
     {
+        if ($viewPermission !== null) {
+            $this->viewPermission = $viewPermission;
+        }
+
         $requiredScope = $this->requiredScope($operation);
 
         $accessToken = $this->authenticateAccessToken($request);
@@ -131,7 +149,7 @@ class EnsureEmailLinkExpirationAccess
         $authorized = match ($operation) {
             self::OPERATION_READ => $this->permissionChecker->allows(
                 $user,
-                self::VIEW_PERMISSION,
+                $this->viewPermission,
             ),
             self::OPERATION_WRITE => $this->permissionChecker->isSuperAdmin($user),
             default => false,

@@ -30,6 +30,7 @@ class SystemSettingEmailLinkExpirationController extends Controller
     ): SystemSettingEmailLinkExpirationResource {
         $minutes = $setting->updateMinutes(
             (int) $request->input('minutes'),
+            $request->user() ?? auth()->guard('api')->user(),
         );
 
         return new SystemSettingEmailLinkExpirationResource($minutes);

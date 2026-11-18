@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\SystemSettingAccountLinkExpirationController;
 use App\Http\Controllers\SystemSettingEmailLinkExpirationController;
 use App\Http\Middleware\EnsureEmailLinkExpirationAccess;
 use Illuminate\Support\Facades\Route;
@@ -23,4 +24,28 @@ Route::prefix('v1')->group(function (): void {
     )
         ->middleware(EnsureEmailLinkExpirationAccess::using('write'))
         ->name('system-settings.email-link-expiration.update');
+
+    // The three account-link expiration settings reuse the exact same
+    // authorization rules with their own view permission: human reads need
+    // `settings.account_link_expiration.view`, writes stay Super Admin only,
+    // and machine clients may read but never write.
+    Route::get(
+        'system-settings/account-link-expirations',
+        [SystemSettingAccountLinkExpirationController::class, 'show'],
+    )
+        ->middleware(EnsureEmailLinkExpirationAccess::using(
+            'read',
+            'settings.account_link_expiration.view',
+        ))
+        ->name('system-settings.account-link-expirations.show');
+
+    Route::put(
+        'system-settings/account-link-expirations',
+        [SystemSettingAccountLinkExpirationController::class, 'update'],
+    )
+        ->middleware(EnsureEmailLinkExpirationAccess::using(
+            'write',
+            'settings.account_link_expiration.view',
+        ))
+        ->name('system-settings.account-link-expirations.update');
 });

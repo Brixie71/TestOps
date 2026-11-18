@@ -15,6 +15,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class UserEmailAddress extends Model
 {
     /**
+     * The address the user currently signs in with.
+     */
+    public const STATUS_CURRENT = 'current';
+
+    /**
+     * The address reserved at credential-issue time, before activation.
+     */
+    public const STATUS_RESERVED = 'reserved';
+
+    /**
      * Get the user who owns this email address.
      */
     public function user(): BelongsTo

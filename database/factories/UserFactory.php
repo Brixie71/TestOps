@@ -45,6 +45,27 @@ class UserFactory extends Factory
     }
 
     /**
+     * Email Only account without a display name.
+     */
+    public function emailOnly(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'name' => null,
+        ]);
+    }
+
+    /**
+     * Invited account: credentials issued but not yet activated.
+     */
+    public function invited(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'account_status' => 'invited',
+            'email_verified_at' => null,
+        ]);
+    }
+
+    /**
      * Configure the factory callbacks.
      */
     public function configure(): static

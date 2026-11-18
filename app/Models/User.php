@@ -55,6 +55,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed', // Automatically hashes assigned passwords. protects the stored password.
+            'password_reset_required' => 'boolean',
         ];
     }
 
@@ -88,5 +89,10 @@ class User extends Authenticatable
     public function createdInvitations(): HasMany
     {
         return $this->hasMany(UserInvitation::class, 'created_by');
+    }
+
+    public function verificationRequests(): HasMany
+    {
+        return $this->hasMany(EmailVerificationRequest::class);
     }
 }

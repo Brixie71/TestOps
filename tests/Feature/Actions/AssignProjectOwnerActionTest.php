@@ -250,8 +250,14 @@ class AssignProjectOwnerActionTest extends TestCase
             $this->auditRow('project.ownership.assigned', $actor->id, $owner->id)->after_values['transfer_type'],
         );
 
+        // The transferred hook is only for automatic assignment: no manual
+        // assignment audit may ever carry the automatic payload. The
+        // payload lives in the after_values JSON, so assert on that JSON
+        // path (a plain column name would either raise a missing-column
+        // error on PostgreSQL or be silently ignored on SQLite).
         $this->assertDatabaseMissing('audit_logs', [
-            'transfer_type' => 'automatic',
+            'action' => 'project.ownership.assigned',
+            'after_values->transfer_type' => 'automatic',
         ]);
     }
 

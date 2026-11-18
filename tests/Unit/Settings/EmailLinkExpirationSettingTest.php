@@ -3,6 +3,7 @@
 namespace Tests\Unit\Settings;
 
 use App\Models\SystemSetting;
+use App\Services\Audit\AuditLogger;
 use App\Services\Settings\EmailLinkExpirationSetting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
@@ -14,7 +15,7 @@ class EmailLinkExpirationSettingTest extends TestCase
 
     public function test_missing_setting_returns_default_value(): void
     {
-        $setting = new EmailLinkExpirationSetting;
+        $setting = new EmailLinkExpirationSetting(new AuditLogger);
 
         $this->assertSame(60, $setting->getMinutes());
 
@@ -28,14 +29,14 @@ class EmailLinkExpirationSettingTest extends TestCase
             'setting_value' => '120',
         ]);
 
-        $setting = new EmailLinkExpirationSetting;
+        $setting = new EmailLinkExpirationSetting(new AuditLogger);
 
         $this->assertSame(120, $setting->getMinutes());
     }
 
     public function test_setting_can_be_updated_to_minimum_value(): void
     {
-        $setting = new EmailLinkExpirationSetting;
+        $setting = new EmailLinkExpirationSetting(new AuditLogger);
 
         $this->assertSame(1, $setting->updateMinutes(1));
 
@@ -49,7 +50,7 @@ class EmailLinkExpirationSettingTest extends TestCase
 
     public function test_setting_can_be_updated_to_maximum_value(): void
     {
-        $setting = new EmailLinkExpirationSetting;
+        $setting = new EmailLinkExpirationSetting(new AuditLogger);
 
         $this->assertSame(1440, $setting->updateMinutes(1440));
 
@@ -68,7 +69,7 @@ class EmailLinkExpirationSettingTest extends TestCase
             'setting_value' => '60',
         ]);
 
-        $setting = new EmailLinkExpirationSetting;
+        $setting = new EmailLinkExpirationSetting(new AuditLogger);
 
         $setting->updateMinutes(120);
 
@@ -84,20 +85,20 @@ class EmailLinkExpirationSettingTest extends TestCase
     {
         $this->expectException(ValidationException::class);
 
-        (new EmailLinkExpirationSetting)->updateMinutes(0);
+        (new EmailLinkExpirationSetting(new AuditLogger))->updateMinutes(0);
     }
 
     public function test_negative_minutes_are_rejected(): void
     {
         $this->expectException(ValidationException::class);
 
-        (new EmailLinkExpirationSetting)->updateMinutes(-1);
+        (new EmailLinkExpirationSetting(new AuditLogger))->updateMinutes(-1);
     }
 
     public function test_values_above_maximum_are_rejected(): void
     {
         $this->expectException(ValidationException::class);
 
-        (new EmailLinkExpirationSetting)->updateMinutes(1441);
+        (new EmailLinkExpirationSetting(new AuditLogger))->updateMinutes(1441);
     }
 }

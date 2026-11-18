@@ -42,6 +42,38 @@
             </p>
         </header>
 
+        @if (session('bulk_results') !== null)
+            {{-- Per-target results of a bulk operation (§13.1): every
+                 selection is reported individually. --}}
+            <div
+                role="status"
+                class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+            >
+                <p class="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Bulk operation results
+                </p>
+                <ul class="mt-2 space-y-1.5 text-sm">
+                    @foreach (session('bulk_results') as $result)
+                        <li class="flex items-start gap-2">
+                            @if ($result['success'])
+                                <span aria-hidden="true" class="mt-0.5 text-emerald-600 dark:text-emerald-400">✓</span>
+                                <span class="text-slate-600 dark:text-slate-400">
+                                    <span class="font-medium text-slate-700 dark:text-slate-300">{{ $result['name'] }}</span>
+                                    — {{ $result['message'] }}
+                                </span>
+                            @else
+                                <span aria-hidden="true" class="mt-0.5 text-red-600 dark:text-red-400">✕</span>
+                                <span class="text-slate-600 dark:text-slate-400">
+                                    <span class="font-medium text-slate-700 dark:text-slate-300">{{ $result['name'] }}</span>
+                                    — <span class="text-red-600 dark:text-red-400">{{ $result['message'] }}</span>
+                                </span>
+                            @endif
+                        </li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
         <div class="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
             {{-- Search, filters, and sorting controls (GET) --}}
             {{-- Search, filters, and sorting controls (GET).
@@ -138,6 +170,9 @@
                         <caption class="sr-only">TestOps user accounts</caption>
                         <thead class="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:bg-slate-950/60 dark:text-slate-400">
                             <tr>
+                                <th scope="col" class="w-10 px-4 py-3">
+                                    <span class="sr-only">Select for bulk operation</span>
+                                </th>
                                 <th scope="col" class="px-4 py-3">User</th>
                                 <th scope="col" class="px-4 py-3">Email</th>
                                 <th scope="col" class="px-4 py-3">Department</th>
@@ -163,12 +198,30 @@
                                 @endphp
                                 <tr class="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                                     <td class="px-4 py-4">
+                                        {{-- The form attribute associates the checkbox with the
+                                             bulk-operations form below the card, so per-row
+                                             forms stay valid HTML (no nesting). --}}
+                                        <input
+                                            type="checkbox"
+                                            name="user_ids[]"
+                                            value="{{ $user->id }}"
+                                            form="bulk-users-form"
+                                            aria-label="Select {{ $user->name }} for a bulk operation"
+                                            class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 dark:border-slate-600 dark:bg-slate-800"
+                                        >
+                                    </td>
+                                    <td class="px-4 py-4">
                                         <div class="flex items-center gap-3">
                                             <span aria-hidden="true" class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-indigo-600 text-xs font-semibold text-white">
                                                 {{ $initial }}
                                             </span>
                                             <span class="font-medium text-slate-900 dark:text-slate-100">
-                                                {{ $user->name }}
+                                                <a
+                                                    href="{{ route('settings.users.show', $user->id) }}"
+                                                    class="transition-colors hover:text-indigo-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:text-indigo-400"
+                                                >
+                                                    {{ $user->name }}
+                                                </a>
                                             </span>
                                         </div>
                                     </td>
@@ -236,6 +289,38 @@
                                                     class="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-white"
                                                 >
                                                     Deactivate
+                                                </button>
+                                            @endif
+
+                                            @php
+                                                $rowInvitation = $user->invitations->first();
+                                                $invitationLive = $rowInvitation !== null
+                                                    && ! $user->trashed()
+                                                    && $user->account_status === 'invited'
+                                                    && ! $rowInvitation->isCancelled()
+                                                    && ! $rowInvitation->isAccepted();
+                                            @endphp
+
+                                            @if ($canManageInvitations && $invitationLive)
+                                                {{-- Resend rotates the credentials and emails a fresh link. --}}
+                                                <form method="POST" action="{{ route('settings.users.invitations.resend', $rowInvitation->id) }}" class="mt-2">
+                                                    @csrf
+                                                    <button
+                                                        type="submit"
+                                                        class="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-white"
+                                                    >
+                                                        Resend link
+                                                    </button>
+                                                </form>
+                                                {{-- Opens the shared cancellation dialog; reason required server-side. --}}
+                                                <button
+                                                    type="button"
+                                                    data-dialog-target="dialog-cancel-invitation"
+                                                    data-user-id="{{ $rowInvitation->id }}"
+                                                    data-user-name="{{ $user->name }}"
+                                                    class="mt-2 inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-white"
+                                                >
+                                                    Cancel invitation
                                                 </button>
                                             @endif
                                     </td>
@@ -326,6 +411,73 @@
                 </div>
             @endif
         </div>
+
+        @if ($users->isNotEmpty())
+            {{-- Bulk operations (§13): one form, two server-side endpoints. --}}
+            @if ($errors->any() && old('dialog') !== 'deactivate-user')
+                <div role="alert" class="rounded-lg border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-400">
+                    <ul class="list-inside list-disc space-y-1">
+                        @foreach ($errors->all() as $error) <li>{{ $error }}</li> @endforeach
+                    </ul>
+                </div>
+            @endif
+            <form
+                id="bulk-users-form"
+                method="POST"
+                action="{{ route('settings.users.bulk.deactivate') }}"
+                class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+            >
+                @csrf
+                <div class="flex flex-wrap items-end gap-3">
+                    @if ($canAssignRoles)
+                        <div class="w-56">
+                            <label for="bulk-role-id" class="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                                Assign system role
+                            </label>
+                            <select
+                                id="bulk-role-id"
+                                name="role_id"
+                                class="mt-1.5 block w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+                            >
+                                <option value="">Choose a role…</option>
+                                @foreach ($systemRoles->reject(fn ($systemRole) => $systemRole->code === 'SUPER_ADMIN') as $bulkRole)
+                                    <option value="{{ $bulkRole->id }}">{{ $bulkRole->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <button
+                            type="submit"
+                            formaction="{{ route('settings.users.bulk.role') }}"
+                            class="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-white"
+                        >
+                            Assign to selected
+                        </button>
+                    @endif
+
+                    <div class="flex-1 sm:min-w-[260px]">
+                        <label for="bulk-deactivation-reason" class="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                            Deactivation reason
+                        </label>
+                        <p class="mt-0.5 text-xs text-slate-400 dark:text-slate-500">Recorded in the audit log for each account.</p>
+                        <input
+                            id="bulk-deactivation-reason"
+                            type="text"
+                            name="reason"
+                            maxlength="500"
+                            class="mt-1.5 block w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+                        >
+                    </div>
+
+                    <button
+                        type="submit"
+                        class="inline-flex items-center justify-center rounded-lg border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:border-red-900/70 dark:bg-slate-900 dark:text-red-400 dark:hover:bg-red-950/40"
+                    >
+                        Deactivate selected
+                    </button>
+                </div>
+            </form>
+        @endif
     </section>
     {{-- Deactivation confirmation dialog — one instance, context filled per trigger.
          The route carries {user} as a URL param, so the action is a server-side
@@ -382,6 +534,65 @@
             <div class="flex justify-end gap-2.5 pt-1">
                 <button type="button" data-dialog-close class="rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">Cancel</button>
                 <button type="submit" class="rounded-lg bg-red-600 px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900">Deactivate user</button>
+            </div>
+        </form>
+    </x-dialog>
+
+    {{-- Cancellation dialog for a pending invitation — one instance, filled per trigger.
+         The route carries {invitation} as a URL param; the trigger passes the
+         invitation id through the same data-fill mechanism. --}}
+    <x-dialog
+        id="dialog-cancel-invitation"
+        context="cancel-invitation"
+        title="Cancel invitation"
+        description="Cancelling revokes the pending account offer; the account can be invited again later."
+    >
+        <form
+            method="POST"
+            action="{{ route('settings.users.invitations.cancel', '__INVITATION__') }}"
+            data-user-template="{{ route('settings.users.invitations.cancel', '__INVITATION__') }}"
+            class="space-y-4"
+        >
+            @csrf
+            <input type="hidden" name="dialog" value="cancel-invitation">
+            <input type="hidden" name="dialog_user" data-fill="user-id" value="{{ old('dialog_user') }}">
+            <input type="hidden" name="dialog_user_name" value="{{ old('dialog_user_name') }}">
+
+            @if ($errors->any() && old('dialog') === 'cancel-invitation')
+                <div role="alert" class="rounded-lg border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-400">
+                    <ul class="list-inside list-disc space-y-1">
+                        @foreach ($errors->all() as $error) <li>{{ $error }}</li> @endforeach
+                    </ul>
+                </div>
+            @endif
+
+            <p class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-900/70 dark:bg-amber-500/10 dark:text-amber-400">
+                You are about to cancel the invitation for
+                <strong data-fill="user-name" class="font-semibold">{{ old('dialog_user_name') ?: 'this recipient' }}</strong>.
+                Outstanding credentials stop working immediately.
+            </p>
+
+            <div>
+                <label for="cancel-invitation-reason" class="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Reason <span class="text-red-500" aria-hidden="true">*</span>
+                </label>
+                <p class="mt-0.5 text-xs text-slate-400 dark:text-slate-500">Recorded in the audit log.</p>
+                <textarea
+                    id="cancel-invitation-reason"
+                    name="cancelled_reason"
+                    rows="3"
+                    maxlength="255"
+                    required
+                    class="mt-1.5 block w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+                >{{ old('cancelled_reason') }}</textarea>
+                @error('cancelled_reason')
+                    <p class="mt-1.5 text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>
+                @enderror
+            </div>
+
+            <div class="flex justify-end gap-2.5 pt-1">
+                <button type="button" data-dialog-close class="rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">Keep invitation</button>
+                <button type="submit" class="rounded-lg bg-red-600 px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900">Cancel invitation</button>
             </div>
         </form>
     </x-dialog>

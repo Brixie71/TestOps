@@ -22,8 +22,10 @@ class DatabaseSeeder extends Seeder
             ProjectAuthorizationPermissionSeeder::class,
             SystemSettingPermissionSeeder::class,
             UserManagementPermissionSeeder::class,
+            AccountCreationPermissionSeeder::class,
             SuperAdminSeeder::class,
             SystemSettingSeeder::class,
+            AccountLinkExpirationSettingsSeeder::class,
         ]);
 
         // User::factory(10)->create();

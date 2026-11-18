@@ -1,5 +1,5 @@
 @php
-    $isActive = fn (string $route): bool => request()->routeIs($route);
+    $isActive = fn (string|array $route): bool => request()->routeIs($route);
 
     // Data-driven so future role-aware navigation (§8) only changes this array.
     $groups = [
@@ -11,7 +11,9 @@
         [
             'label' => 'User Management',
             'items' => [
-                ['label' => 'Users', 'route' => 'settings.users', 'active' => $isActive('settings.users')],
+                ['label' => 'Users', 'route' => 'settings.users', 'active' => $isActive(['settings.users', 'settings.users.*'])],
+                ['label' => 'Notifications', 'route' => 'settings.notifications', 'active' => $isActive('settings.notifications.*')],
+                ['label' => 'Audit Logs', 'route' => 'settings.audit-logs', 'active' => $isActive('settings.audit-logs.*')],
             ],
         ],
         [

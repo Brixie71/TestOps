@@ -35,8 +35,44 @@ class UserManagementPermissionSeeder extends Seeder
                 ],
             );
 
+            $roleAssignment = Permission::firstOrCreate(
+                ['code' => 'users.roles.assign'],
+                [
+                    'name' => 'Assign User System Roles',
+                    'description' => 'Allows assigning eligible existing system roles to user accounts, subject to the approved System Admin restrictions.',
+                ],
+            );
+
+            $auditAccess = Permission::firstOrCreate(
+                ['code' => 'audit.view'],
+                [
+                    'name' => 'View Audit Logs',
+                    'description' => 'Allows viewing, filtering, and exporting the audit log, subject to the approved System Admin restrictions.',
+                ],
+            );
+
+            $notificationHistory = Permission::firstOrCreate(
+                ['code' => 'notifications.view'],
+                [
+                    'name' => 'View Email Delivery History',
+                    'description' => 'Allows viewing the email delivery history and retrying eligible failed deliveries, subject to the approved System Admin restrictions.',
+                ],
+            );
+
+            $passwordManagement = Permission::firstOrCreate(
+                ['code' => 'users.password.manage'],
+                [
+                    'name' => 'Manage User Passwords',
+                    'description' => 'Allows administrative password management — manual sets and forced email-link resets — subject to the approved System Admin restrictions.',
+                ],
+            );
+
             $role->permissions()->syncWithoutDetaching([
                 $permission->id,
+                $roleAssignment->id,
+                $auditAccess->id,
+                $notificationHistory->id,
+                $passwordManagement->id,
             ]);
         });
     }

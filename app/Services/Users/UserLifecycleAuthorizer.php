@@ -2,6 +2,7 @@
 
 namespace App\Services\Users;
 
+use App\Models\Role;
 use App\Models\User;
 use App\Services\Authorization\PermissionChecker;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -80,6 +81,77 @@ class UserLifecycleAuthorizer
         if ($otherActiveSuperAdmins === 0) {
             throw new AuthorizationException(
                 'The last active Super Admin account cannot be deactivated.'
+            );
+        }
+    }
+
+    /**
+     * Assert that the actor may manage the target user's password (§11.2):
+     * the `users.password.manage` permission, the self-management
+     * restriction (§6.5 — self-password changes follow their separate
+     * security workflow), and the protected-target restrictions.
+     *
+     * @throws AuthorizationException when the actor is not authorized
+     */
+    public function assertCanManagePassword(User $actor, User $target): void
+    {
+        if (! $this->permissionChecker->allows($actor, 'users.password.manage')) {
+            throw new AuthorizationException(
+                'You are not authorized to manage user passwords.'
+            );
+        }
+
+        if ($actor->is($target)) {
+            throw new AuthorizationException(
+                'You cannot manage your own password through administrative password management.'
+            );
+        }
+
+        if ($this->isProtectedTarget($actor, $target)) {
+            throw new AuthorizationException(
+                'System Admins cannot manage Super Admin or other System Admin accounts.'
+            );
+        }
+    }
+
+    /**
+     * Assert that the actor may change the target user's system role to
+     * the given role (null clears the assignment).
+     *
+     * Same permission and target protections as lifecycle operations, plus
+     * the approved System Admin role restrictions: only Super Admin may
+     * grant the built-in SUPER_ADMIN role, and System Admins may never
+     * change another System Admin's or a Super Admin's role.
+     *
+     * @throws AuthorizationException when the actor is not authorized
+     */
+    public function assertCanChangeRole(User $actor, User $target, ?Role $newRole): void
+    {
+        if (! $this->permissionChecker->allows($actor, 'users.roles.assign')) {
+            throw new AuthorizationException(
+                'You are not authorized to assign system roles.'
+            );
+        }
+
+        if ($actor->is($target)) {
+            throw new AuthorizationException(
+                'You cannot change your own system role.'
+            );
+        }
+
+        if ($this->isProtectedTarget($actor, $target)) {
+            throw new AuthorizationException(
+                'System Admins cannot manage Super Admin or other System Admin accounts.'
+            );
+        }
+
+        if ($newRole !== null
+            && $newRole->scope === 'system'
+            && $newRole->code === 'SUPER_ADMIN'
+            && ! $this->permissionChecker->isSuperAdmin($actor)
+        ) {
+            throw new AuthorizationException(
+                'Only Super Admin may assign the Super Admin role.'
             );
         }
     }

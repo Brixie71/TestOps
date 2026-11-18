@@ -28,6 +28,8 @@ class AuditLogger
         'remember_token',
         'credential',
         'credentials',
+        'recovery_code',
+        'recovery_code_hash',
     ];
 
     /**

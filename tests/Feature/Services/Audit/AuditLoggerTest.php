@@ -146,4 +146,34 @@ class AuditLoggerTest extends TestCase
             'Email' => 'user@example.com',
         ], $auditLog->before_values);
     }
+
+    public function test_recovery_code_and_recovery_code_hash_snapshots_are_removed(): void
+    {
+        $auditLog = app(AuditLogger::class)->log(
+            null,
+            null,
+            'invitation.updated',
+            [
+                'recovery_code' => 'must-not-be-stored',
+                'Recovery_Code_Hash' => 'must-not-be-stored',
+                'invited_email' => 'safe@example.net',
+            ],
+            [
+                'recovery_code' => 'must-not-be-stored',
+                'recovery_code_hash' => 'must-not-be-stored',
+            ],
+        );
+
+        $this->assertSame([
+            'invited_email' => 'safe@example.net',
+        ], $auditLog->before_values);
+
+        $this->assertStringNotContainsString(
+            'must-not-be-stored',
+            json_encode([
+                $auditLog->before_values,
+                $auditLog->after_values,
+            ], JSON_THROW_ON_ERROR),
+        );
+    }
 }
