@@ -4,9 +4,12 @@ namespace Tests\Feature\Actions;
 
 use App\Actions\DeactivateUserAction;
 use App\Models\AuditLog;
+use App\Models\EmailVerificationRequest;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\UserEmailAddress;
+use App\Services\Auth\EmailVerificationService;
 use App\Services\Users\UserLifecycleAuthorizer;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -60,6 +63,47 @@ class DeactivateUserActionTest extends TestCase
             $deactivation->before_values,
         );
         $this->assertArrayHasKey('deleted_at', $deactivation->after_values);
+    }
+
+    public function test_cancels_a_pending_email_change_and_invalidates_its_tokens(): void
+    {
+        $actor = $this->createSuperAdmin();
+        $target = User::factory()->create();
+        $currentEmail = $target->email;
+        $pendingEmail = 'pending-change@example.com';
+
+        UserEmailAddress::query()->create([
+            'user_id' => $target->getKey(),
+            'email' => $pendingEmail,
+            'status' => UserEmailAddress::STATUS_PENDING,
+        ]);
+
+        $verification = EmailVerificationRequest::factory()->create([
+            'user_id' => $target->getKey(),
+            'purpose' => EmailVerificationService::PURPOSE_EMAIL_CHANGE,
+            'email' => $pendingEmail,
+        ]);
+
+        $this->action->execute($actor, $target, 'Confirmed policy violation.');
+
+        // The pending reservation is released...
+        $this->assertDatabaseMissing('user_email_addresses', [
+            'user_id' => $target->getKey(),
+            'email' => $pendingEmail,
+        ]);
+
+        // ...its verification token can no longer be consumed...
+        $this->assertDatabaseHas('email_verification_requests', [
+            'id' => $verification->getKey(),
+            'state' => EmailVerificationRequest::STATE_INVALIDATED,
+        ]);
+
+        // ...and the current verified email is preserved.
+        $this->assertDatabaseHas('user_email_addresses', [
+            'user_id' => $target->getKey(),
+            'email' => $currentEmail,
+            'status' => UserEmailAddress::STATUS_CURRENT,
+        ]);
     }
 
     public function test_revokes_the_target_credentials_and_audits_aggregate_counts_only(): void

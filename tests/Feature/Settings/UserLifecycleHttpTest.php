@@ -315,9 +315,10 @@ class UserLifecycleHttpTest extends TestCase
         (new UserManagementPermissionSeeder)->run();
 
         // users.deactivate, users.roles.assign, audit.view,
-        // notifications.view, and users.password.manage, seeded once and
+        // notifications.view, users.password.manage,
+        // users.email.manage, and users.profile.manage, seeded once and
         // re-synced idempotently on the second run.
-        $this->assertDatabaseCount('permissions', 5);
+        $this->assertDatabaseCount('permissions', 7);
     }
 
     private function assertSeeLifecycleControls($response, int $userId, bool $visible): void

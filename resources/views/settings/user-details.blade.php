@@ -79,6 +79,90 @@
                             <dd class="text-right font-medium text-slate-700 dark:text-slate-300">{{ $target->created_at?->format('M d, Y') ?? '—' }}</dd>
                         </div>
                     </dl>
+
+                    @if ($canEditProfile)
+                        {{-- Administrative profile editing (§3.1, §6.3):
+                             only the four profile fields; email, password,
+                             role, and account status keep their own flows. --}}
+                        <form method="POST" action="{{ route('settings.users.profile.update', $target->getKey()) }}" class="mt-4 space-y-3 border-t border-slate-200 pt-4 dark:border-slate-800">
+                            @csrf
+                            @method('PATCH')
+                            <div>
+                                <label for="profile-edit-name" class="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                                    Name
+                                </label>
+                                <input
+                                    id="profile-edit-name"
+                                    type="text"
+                                    name="name"
+                                    maxlength="255"
+                                    autocomplete="name"
+                                    value="{{ old('name', $target->name) }}"
+                                    class="mt-1 block w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                                >
+                                @error('name')
+                                    <p class="mt-1 text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>
+                                @enderror
+                            </div>
+                            <div>
+                                <label for="profile-edit-contact-number" class="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                                    Contact number
+                                </label>
+                                <input
+                                    id="profile-edit-contact-number"
+                                    type="text"
+                                    name="contact_number"
+                                    maxlength="30"
+                                    autocomplete="tel"
+                                    value="{{ old('contact_number', $target->contact_number) }}"
+                                    class="mt-1 block w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                                >
+                                @error('contact_number')
+                                    <p class="mt-1 text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>
+                                @enderror
+                            </div>
+                            <div>
+                                <label for="profile-edit-job-title" class="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                                    Job title
+                                </label>
+                                <input
+                                    id="profile-edit-job-title"
+                                    type="text"
+                                    name="job_title"
+                                    maxlength="100"
+                                    value="{{ old('job_title', $target->job_title) }}"
+                                    class="mt-1 block w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                                >
+                                @error('job_title')
+                                    <p class="mt-1 text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>
+                                @enderror
+                            </div>
+                            <div>
+                                <label for="profile-edit-department" class="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                                    Department
+                                </label>
+                                <input
+                                    id="profile-edit-department"
+                                    type="text"
+                                    name="department"
+                                    maxlength="100"
+                                    value="{{ old('department', $target->department) }}"
+                                    class="mt-1 block w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                                >
+                                @error('department')
+                                    <p class="mt-1 text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>
+                                @enderror
+                            </div>
+                            <div class="flex justify-end">
+                                <button
+                                    type="submit"
+                                    class="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-white"
+                                >
+                                    Update profile
+                                </button>
+                            </div>
+                        </form>
+                    @endif
                 </div>
 
                 <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -224,6 +308,50 @@
                     </div>
                 @endif
 
+                @if ($pendingEmailChange !== null)
+                    <div class="rounded-xl border border-amber-200 bg-amber-50 p-5 shadow-sm dark:border-amber-900/70 dark:bg-amber-500/10">
+                        <h3 class="text-sm font-semibold text-amber-800 dark:text-amber-300">Pending email change</h3>
+                        <p class="mt-2 text-sm text-amber-700 dark:text-amber-400">
+                            This account is awaiting verification of
+                            <span class="font-medium">{{ $pendingEmailChange->email }}</span>.
+                            The current address stays active until the new one is verified.
+                        </p>
+
+                        @if ($canCancelEmailChange)
+                            <form method="POST" action="{{ route('settings.users.email-change.cancel', $target->getKey()) }}" class="mt-4 space-y-3">
+                                @csrf
+                                <div>
+                                    <label for="email-change-cancel-reason" class="block text-xs font-medium text-amber-800 dark:text-amber-300">
+                                        Reason <span class="text-red-500" aria-hidden="true">*</span>
+                                    </label>
+                                    <textarea
+                                        id="email-change-cancel-reason"
+                                        name="reason"
+                                        rows="2"
+                                        required
+                                        maxlength="500"
+                                        class="mt-1 block w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-amber-900/70 dark:bg-slate-950 dark:text-slate-100"
+                                    >{{ old('reason') }}</textarea>
+                                    @error('reason')
+                                        <p class="mt-1 text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>
+                                    @enderror
+                                    @error('email')
+                                        <p class="mt-1 text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>
+                                    @enderror
+                                </div>
+                                <div class="flex justify-end">
+                                    <button
+                                        type="submit"
+                                        class="inline-flex items-center justify-center rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-800 transition-colors hover:bg-amber-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:border-amber-900/70 dark:bg-slate-900 dark:text-amber-300 dark:hover:bg-amber-950/40"
+                                    >
+                                        Cancel pending email change
+                                    </button>
+                                </div>
+                            </form>
+                        @endif
+                    </div>
+                @endif
+
                 @if ($target->account_status === 'invited' && $latestInvitation !== null && ! $latestInvitation->isCancelled())
                     <div class="rounded-xl border border-amber-200 bg-amber-50 p-5 shadow-sm dark:border-amber-900/70 dark:bg-amber-500/10">
                         <h3 class="text-sm font-semibold text-amber-800 dark:text-amber-300">Pending invitation</h3>
@@ -236,6 +364,84 @@
                             @endif
                             Resend and cancellation controls are available in the user directory.
                         </p>
+                    </div>
+                @endif
+
+                @if ($canPermanentlyDelete)
+                    {{-- Irreversible account removal (§7.3): Super Admin only,
+                         deactivated accounts only, and blocked while a
+                         restrictive dependency still references the account. --}}
+                    <div class="rounded-xl border border-red-200 bg-red-50 p-5 shadow-sm dark:border-red-900/70 dark:bg-red-500/10">
+                        <h3 class="text-sm font-semibold text-red-800 dark:text-red-300">Permanent deletion</h3>
+                        <p class="mt-2 text-sm text-red-700 dark:text-red-400">
+                            Permanently deleting this account removes the user record and every email address it
+                            owns, revokes its credentials, and ends its sessions. This cannot be undone; audit
+                            history keeps its identity snapshots.
+                        </p>
+
+                        @if ($deletionDependencies !== [])
+                            <div class="mt-3 rounded-lg border border-red-300 bg-white px-3 py-2.5 text-xs text-red-800 dark:border-red-900/70 dark:bg-slate-950 dark:text-red-300">
+                                <p class="font-medium">Resolve these dependencies first:</p>
+                                <ul class="mt-1 list-inside list-disc space-y-1">
+                                    @foreach ($deletionDependencies as $dependency)
+                                        <li>
+                                            {{ $dependency['label'] }}: {{ $dependency['count'] }}.
+                                            {{ $dependency['resolution'] }}
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        @endif
+
+                        @error('delete')
+                            <p class="mt-3 text-xs text-rose-700 dark:text-rose-400">{{ $message }}</p>
+                        @enderror
+
+                        <form method="POST" action="{{ route('settings.users.permanent-delete', $target->getKey()) }}" class="mt-4 space-y-3">
+                            @csrf
+                            @method('DELETE')
+                            <div>
+                                <label for="permanent-delete-password" class="block text-xs font-medium text-red-800 dark:text-red-300">
+                                    Your current password <span class="text-red-500" aria-hidden="true">*</span>
+                                </label>
+                                <input
+                                    id="permanent-delete-password"
+                                    type="password"
+                                    name="current_password"
+                                    required
+                                    autocomplete="current-password"
+                                    class="mt-1 block w-full rounded-lg border border-red-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-500/20 dark:border-red-900/70 dark:bg-slate-950 dark:text-slate-100"
+                                >
+                                @error('current_password')
+                                    <p class="mt-1 text-xs text-rose-700 dark:text-rose-400">{{ $message }}</p>
+                                @enderror
+                            </div>
+                            <div>
+                                <label for="permanent-delete-reason" class="block text-xs font-medium text-red-800 dark:text-red-300">
+                                    Reason <span class="text-red-500" aria-hidden="true">*</span>
+                                </label>
+                                <textarea
+                                    id="permanent-delete-reason"
+                                    name="reason"
+                                    rows="2"
+                                    required
+                                    maxlength="500"
+                                    class="mt-1 block w-full rounded-lg border border-red-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-500/20 dark:border-red-900/70 dark:bg-slate-950 dark:text-slate-100"
+                                >{{ old('reason') }}</textarea>
+                                @error('reason')
+                                    <p class="mt-1 text-xs text-rose-700 dark:text-rose-400">{{ $message }}</p>
+                                @enderror
+                            </div>
+                            <div class="flex justify-end">
+                                <button
+                                    type="submit"
+                                    @disabled($deletionDependencies !== [])
+                                    class="inline-flex items-center justify-center rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-700 transition-colors hover:bg-red-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900/70 dark:bg-slate-900 dark:text-red-400 dark:hover:bg-red-950/40"
+                                >
+                                    Permanently delete account
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 @endif
             </div>

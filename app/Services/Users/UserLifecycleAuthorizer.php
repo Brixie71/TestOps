@@ -115,6 +115,85 @@ class UserLifecycleAuthorizer
     }
 
     /**
+     * Assert that the actor may cancel the target user's pending email
+     * change (§9.6): the `users.email.manage` permission, the self-management
+     * restriction (users cancel their own pending change through their
+     * password-confirmed profile workflow), and the protected-target
+     * restrictions.
+     *
+     * @throws AuthorizationException when the actor is not authorized
+     */
+    public function assertCanManageEmailChange(User $actor, User $target): void
+    {
+        if (! $this->permissionChecker->allows($actor, 'users.email.manage')) {
+            throw new AuthorizationException(
+                'You are not authorized to manage user email changes.'
+            );
+        }
+
+        if ($actor->is($target)) {
+            throw new AuthorizationException(
+                'You cannot cancel your own pending email change through administrative management.'
+            );
+        }
+
+        if ($this->isProtectedTarget($actor, $target)) {
+            throw new AuthorizationException(
+                'System Admins cannot manage Super Admin or other System Admin accounts.'
+            );
+        }
+    }
+
+    /**
+     * Assert that the actor may permanently delete the target account
+     * (§7.3): permanent deletion is restricted to Super Admin, and no actor
+     * may permanently delete their own account.
+     *
+     * @throws AuthorizationException when the actor is not authorized
+     */
+    public function assertCanPermanentlyDelete(User $actor, User $target): void
+    {
+        if (! $this->permissionChecker->isSuperAdmin($actor)) {
+            throw new AuthorizationException(
+                'Only Super Admin may permanently delete accounts.'
+            );
+        }
+
+        if ($actor->is($target)) {
+            throw new AuthorizationException(
+                'You cannot permanently delete your own account.'
+            );
+        }
+    }
+
+    /**
+     * Assert that the actor may edit the target user's profile fields
+     * (§3.1, §6.3, §6.5): every user may edit their own profile, while
+     * editing another account requires the `users.profile.manage`
+     * permission and respects the protected-target restrictions.
+     *
+     * @throws AuthorizationException when the actor is not authorized
+     */
+    public function assertCanUpdateProfile(User $actor, User $target): void
+    {
+        if ($actor->is($target)) {
+            return;
+        }
+
+        if (! $this->permissionChecker->allows($actor, 'users.profile.manage')) {
+            throw new AuthorizationException(
+                'You are not authorized to edit user profiles.'
+            );
+        }
+
+        if ($this->isProtectedTarget($actor, $target)) {
+            throw new AuthorizationException(
+                'System Admins cannot edit Super Admin or other System Admin accounts.'
+            );
+        }
+    }
+
+    /**
      * Assert that the actor may change the target user's system role to
      * the given role (null clears the assignment).
      *

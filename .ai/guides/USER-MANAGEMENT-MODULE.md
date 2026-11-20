@@ -585,6 +585,19 @@ Until completion, the affected user may access only the password-reset flow.
 
 The exact token expiration, resend, and rate-limit configuration for password resets remains subject to separate design confirmation.
 
+## 11.4 Self-Service Password Change
+
+Every active user may change their own password.
+
+Requirements:
+
+- The user must confirm their current password.
+- The new password must satisfy the approved password policy (§11.1) and be confirmed.
+- The current session stays signed in; every other database session for the account is ended.
+- Existing OAuth access tokens are left unchanged.
+- The change is audited as `user.password.changed` without any password material (§12.3).
+- The mandatory security notice (§14.2) is sent after the change commits.
+
 # 12. Audit Logging
 
 ## 12.1 Storage
@@ -690,6 +703,7 @@ Failures must be recorded for manual follow-up.
 These notifications cannot be disabled by users:
 
 - Password resets
+- Self-service password changes
 - Email verification
 - Account deactivation and restoration
 - System role changes

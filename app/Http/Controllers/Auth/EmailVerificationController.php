@@ -23,6 +23,7 @@ class EmailVerificationController extends Controller
     public function __construct(
         private readonly CredentialHasher $hasher,
         private readonly CompleteAccountActivationAction $activationAction,
+        private readonly EmailVerificationService $verificationService,
     ) {}
 
     public function show(Request $request): View
@@ -76,6 +77,13 @@ class EmailVerificationController extends Controller
         try {
             $this->activationAction->execute($token);
         } catch (EmailVerificationException $exception) {
+            // Counters live outside the rolled-back transaction so a rejected
+            // attempt is always recorded (§10.4, §10.5).
+            $this->verificationService->recordRejectedAttempt(
+                $token,
+                EmailVerificationService::PURPOSE_ACCOUNT_ACTIVATION,
+            );
+
             return view('email-verification.invalid', [
                 'message' => $exception->getMessage(),
             ]);

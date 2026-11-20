@@ -31,6 +31,7 @@ class EmailVerificationRequestFactory extends Factory
             ),
             'state' => EmailVerificationRequest::STATE_ISSUED,
             'expires_at' => now()->addMinutes(5),
+            'issued_at' => now(),
         ];
     }
 

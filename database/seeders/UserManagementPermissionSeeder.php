@@ -67,12 +67,30 @@ class UserManagementPermissionSeeder extends Seeder
                 ],
             );
 
+            $emailManagement = Permission::firstOrCreate(
+                ['code' => 'users.email.manage'],
+                [
+                    'name' => 'Manage User Email Changes',
+                    'description' => 'Allows cancelling another account\'s pending email change, subject to the approved System Admin restrictions.',
+                ],
+            );
+
+            $profileManagement = Permission::firstOrCreate(
+                ['code' => 'users.profile.manage'],
+                [
+                    'name' => 'Edit User Profiles',
+                    'description' => 'Allows editing another account\'s name, contact number, job title, and department, subject to the approved System Admin restrictions.',
+                ],
+            );
+
             $role->permissions()->syncWithoutDetaching([
                 $permission->id,
                 $roleAssignment->id,
                 $auditAccess->id,
                 $notificationHistory->id,
                 $passwordManagement->id,
+                $emailManagement->id,
+                $profileManagement->id,
             ]);
         });
     }

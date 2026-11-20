@@ -7,7 +7,9 @@ use App\Models\AuditLog;
 use App\Models\NotificationDelivery;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\UserEmailAddress;
 use App\Services\Authorization\PermissionChecker;
+use App\Services\Users\UserDeletionDependencyInspector;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -23,7 +25,8 @@ class UserDirectoryController extends Controller
     ];
 
     public function __construct(
-        private readonly PermissionChecker $permissionChecker
+        private readonly PermissionChecker $permissionChecker,
+        private readonly UserDeletionDependencyInspector $deletionDependencyInspector,
     ) {}
 
     public function index(Request $request): View
@@ -200,6 +203,38 @@ class UserDirectoryController extends Controller
             && ($canManageAll || ! $targetProtected)
             && ! $target->trashed();
 
+        // Administrative profile editing (§3.1, §6.3) follows the same
+        // restrictions; self-editing stays on the profile page (§6.5).
+        $canEditProfile = $this->permissionChecker->allows($actor, 'users.profile.manage')
+            && ! $actor->is($target)
+            && ($canManageAll || ! $targetProtected)
+            && ! $target->trashed();
+
+        // Pending self-service email change (§9.6): administrators with
+        // `users.email.manage` may cancel it for eligible targets.
+        $pendingEmailChange = UserEmailAddress::query()
+            ->where('user_id', $target->getKey())
+            ->where('status', UserEmailAddress::STATUS_PENDING)
+            ->first();
+
+        $canCancelEmailChange = $pendingEmailChange !== null
+            && $this->permissionChecker->allows($actor, 'users.email.manage')
+            && ! $actor->is($target)
+            && ($canManageAll || ! $targetProtected)
+            && ! $target->trashed();
+
+        // Permanent deletion (§7.3) is Super Admin only, never self-service,
+        // and only applies to accounts that were already deactivated. The
+        // blocking dependencies are listed so the card can explain why an
+        // account cannot be removed yet.
+        $canPermanentlyDelete = $canManageAll
+            && ! $actor->is($target)
+            && $target->trashed();
+
+        $deletionDependencies = $canPermanentlyDelete
+            ? $this->deletionDependencyInspector->blockingDependencies($target)
+            : [];
+
         return view('settings.user-details', [
             'target' => $target,
             'auditHistory' => $auditHistory,
@@ -209,6 +244,11 @@ class UserDirectoryController extends Controller
             'canManageAll' => $canManageAll,
             'canAssignRole' => $canAssignRole,
             'canManagePassword' => $canManagePassword,
+            'canEditProfile' => $canEditProfile,
+            'pendingEmailChange' => $pendingEmailChange,
+            'canCancelEmailChange' => $canCancelEmailChange,
+            'canPermanentlyDelete' => $canPermanentlyDelete,
+            'deletionDependencies' => $deletionDependencies,
         ]);
     }
 }

@@ -3,6 +3,8 @@
 namespace App\Services\Notifications;
 
 use App\Mail\DirectAccountSetupMailable;
+use App\Mail\EmailChangeCancelledMailable;
+use App\Mail\EmailChangeVerificationMailable;
 use App\Mail\EmailVerificationMailable;
 use App\Mail\InvitationLinkMailable;
 use App\Mail\PasswordResetMailable;
@@ -37,6 +39,10 @@ class InvitationDeliveryService
     public const NOTIFICATION_TYPE_EMAIL_VERIFICATION = 'email_verification';
 
     public const NOTIFICATION_TYPE_FORCED_PASSWORD_RESET = 'forced_password_reset';
+
+    public const NOTIFICATION_TYPE_EMAIL_CHANGE_VERIFICATION = 'email_change_verification';
+
+    public const NOTIFICATION_TYPE_EMAIL_CHANGE_CANCELLED = 'email_change_cancelled';
 
     public function __construct(
         private readonly NotificationDeliveryRecorder $recorder,
@@ -145,6 +151,69 @@ class InvitationDeliveryService
                 $user,
                 (string) $user->email,
                 self::NOTIFICATION_TYPE_FORCED_PASSWORD_RESET,
+                $exception,
+            );
+        }
+    }
+
+    /**
+     * Send the verification link for a pending self-service email change
+     * (§9.4). The token travels only through the mailable argument.
+     */
+    public function sendEmailChangeVerification(
+        EmailVerificationRequest $verificationRequest,
+        string $token,
+    ): ?NotificationDelivery {
+        $expiresInMinutes = $this->settings
+            ->getMinutes(AccountLinkExpirationSettings::KEY_EMAIL_VERIFICATION);
+
+        $mailable = new EmailChangeVerificationMailable(
+            verificationUrl: route('email-change.confirm.show', ['token' => $token]),
+            expiresInMinutes: $expiresInMinutes,
+        );
+
+        try {
+            Mail::to($verificationRequest->email)->send($mailable);
+
+            return $this->recorder->recordSuccess(
+                $verificationRequest->user,
+                $verificationRequest->email,
+                self::NOTIFICATION_TYPE_EMAIL_CHANGE_VERIFICATION,
+            );
+        } catch (Throwable $exception) {
+            return $this->recorder->recordFailure(
+                $verificationRequest->user,
+                $verificationRequest->email,
+                self::NOTIFICATION_TYPE_EMAIL_CHANGE_VERIFICATION,
+                $exception,
+            );
+        }
+    }
+
+    /**
+     * Notify the account holder at their current verified address that an
+     * administrator cancelled a pending email change (§14.5). The message
+     * never exposes internal administrative details.
+     */
+    public function sendEmailChangeCancellation(User $user): ?NotificationDelivery
+    {
+        $recipient = (string) $user->email;
+
+        try {
+            Mail::to($recipient)->send(new EmailChangeCancelledMailable(
+                currentEmail: $recipient,
+            ));
+
+            return $this->recorder->recordSuccess(
+                $user,
+                $recipient,
+                self::NOTIFICATION_TYPE_EMAIL_CHANGE_CANCELLED,
+            );
+        } catch (Throwable $exception) {
+            return $this->recorder->recordFailure(
+                $user,
+                $recipient,
+                self::NOTIFICATION_TYPE_EMAIL_CHANGE_CANCELLED,
                 $exception,
             );
         }

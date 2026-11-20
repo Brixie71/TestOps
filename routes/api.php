@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\SystemSettingAccountLinkExpirationController;
 use App\Http\Controllers\SystemSettingEmailLinkExpirationController;
+use App\Http\Controllers\SystemSettingEmailVerificationLimitController;
 use App\Http\Middleware\EnsureEmailLinkExpirationAccess;
 use Illuminate\Support\Facades\Route;
 
@@ -48,4 +49,28 @@ Route::prefix('v1')->group(function (): void {
             'settings.account_link_expiration.view',
         ))
         ->name('system-settings.account-link-expirations.update');
+
+    // The configurable email-verification limits (§10.7) reuse the same
+    // authorization rules: human reads need the account-link view
+    // permission, writes stay Super Admin only, and machine clients may read
+    // but never write.
+    Route::get(
+        'system-settings/email-verification-limits',
+        [SystemSettingEmailVerificationLimitController::class, 'show'],
+    )
+        ->middleware(EnsureEmailLinkExpirationAccess::using(
+            'read',
+            'settings.account_link_expiration.view',
+        ))
+        ->name('system-settings.email-verification-limits.show');
+
+    Route::put(
+        'system-settings/email-verification-limits',
+        [SystemSettingEmailVerificationLimitController::class, 'update'],
+    )
+        ->middleware(EnsureEmailLinkExpirationAccess::using(
+            'write',
+            'settings.account_link_expiration.view',
+        ))
+        ->name('system-settings.email-verification-limits.update');
 });

@@ -4,8 +4,11 @@ namespace App\Actions;
 
 use App\Models\Role;
 use App\Models\User;
+use App\Models\UserEmailAddress;
 use App\Services\Audit\AuditLogger;
+use App\Services\Auth\EmailVerificationService;
 use App\Services\Auth\RevokesUserCredentials;
+use App\Services\Notifications\AccountSecurityNotificationService;
 use App\Services\Users\LifecycleConnectionGuard;
 use App\Services\Users\UserLifecycleAuthorizer;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -31,21 +34,23 @@ use RuntimeException;
  *    condition are (re)checked while the role-row lock is held, against
  *    database state reloaded under the lock, so a committed concurrent
  *    lifecycle change is observed before acting.
- * 3. The target user is soft-deleted (deactivation is never a new
+ * 3. Any pending email-change request is cancelled: the reserved address row
+ *    is released and every outstanding email-change verification token is
+ *    invalidated. The current verified email is preserved. Restoration never
+ *    revives the cancelled request (§7.2).
+ * 4. The target user is soft-deleted (deactivation is never a new
  *    `account_status` value).
- * 4. `user.deactivated` is audited with the reason and before/after values.
- * 5. Every OAuth access token, refresh token, and authorization code of the
+ * 5. `user.deactivated` is audited with the reason and before/after values.
+ * 6. Every OAuth access token, refresh token, and authorization code of the
  *    target user is revoked through `RevokesUserCredentials`; the aggregate
  *    counts (never token identifiers or secrets) are audited as
  *    `oauth.credentials.revoked`.
- * 6. Only the target user's database sessions are purged through the
+ * 7. Only the target user's database sessions are purged through the
  *    configured session connection and table.
  *
- * Pending email-change cancellation and deactivation notifications are
- * intentionally deferred: no email-change module or user-notification
- * workflow exists yet (see the deferred notes in the User Management
- * specification). Email-address history and reservation records are
- * preserved.
+ * After the transaction commits, the mandatory deactivation notification
+ * (§14.2) is sent through `AccountSecurityNotificationService`. A delivery
+ * failure is recorded and never rolls back the deactivation (§14.1).
  */
 class DeactivateUserAction
 {
@@ -59,6 +64,8 @@ class DeactivateUserAction
         private readonly UserLifecycleAuthorizer $authorizer,
         private readonly RevokesUserCredentials $revokesUserCredentials,
         private readonly AuditLogger $auditLogger,
+        private readonly EmailVerificationService $verificationService,
+        private readonly AccountSecurityNotificationService $securityNotifications,
     ) {}
 
     /**
@@ -136,6 +143,21 @@ class DeactivateUserAction
             // every committed concurrent lifecycle change.
             $this->authorizer->assertLastActiveSuperAdminProtected($target);
 
+            // §7.1: cancel any pending email change and invalidate its
+            // verification tokens. The reserved address is released by
+            // deleting the pending row; the current verified email stays.
+            UserEmailAddress::query()
+                ->where('user_id', $target->getKey())
+                ->where('status', UserEmailAddress::STATUS_PENDING)
+                ->lockForUpdate()
+                ->get()
+                ->each->delete();
+
+            $this->verificationService->invalidateOutstanding(
+                $target,
+                EmailVerificationService::PURPOSE_EMAIL_CHANGE,
+            );
+
             $target->delete();
 
             $this->auditLogger->log(
@@ -163,5 +185,7 @@ class DeactivateUserAction
                 ->where('user_id', $target->getKey())
                 ->delete();
         });
+
+        $this->securityNotifications->sendAccountDeactivated($target);
     }
 }

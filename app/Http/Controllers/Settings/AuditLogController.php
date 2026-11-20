@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Settings;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Services\Audit\AuditLogger;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -85,7 +87,7 @@ class AuditLogController extends Controller
             null,
             'audit.exported',
             null,
-            $this->auditContext($filters),
+            $this->auditContext($filters) + ['format' => 'csv'],
         );
 
         $filename = 'audit-logs-'.now()->format('Ymd-His').'.csv';
@@ -124,6 +126,36 @@ class AuditLogController extends Controller
 
             fclose($output);
         }, $filename, ['Content-Type' => 'text/csv']);
+    }
+
+    /**
+     * PDF export using the same active filters as the page (§12.4-§12.5).
+     *
+     * The filtered history is rendered into one landscape document. Like the
+     * CSV export, the export itself is audited with the active filters and
+     * the produced format.
+     */
+    public function exportPdf(Request $request): Response
+    {
+        $filters = $this->validatedFilters($request);
+
+        $this->auditLogger->log(
+            $request->user(),
+            null,
+            'audit.exported',
+            null,
+            $this->auditContext($filters) + ['format' => 'pdf'],
+        );
+
+        $generatedAt = now();
+
+        return Pdf::loadView('settings.audit-logs-pdf', [
+            'logs' => $this->filteredQuery($filters)->orderBy('id')->get(),
+            'filters' => $filters,
+            'generatedAt' => $generatedAt,
+        ])
+            ->setPaper('a4', 'landscape')
+            ->download('audit-logs-'.$generatedAt->format('Ymd-His').'.pdf');
     }
 
     /**

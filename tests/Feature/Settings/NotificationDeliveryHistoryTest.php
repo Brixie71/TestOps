@@ -2,6 +2,10 @@
 
 namespace Tests\Feature\Settings;
 
+use App\Mail\AccountDeactivatedMailable;
+use App\Mail\PasswordChangedMailable;
+use App\Mail\SystemRoleChangedMailable;
+use App\Models\AuditLog;
 use App\Models\InvitationLinkRequest;
 use App\Models\NotificationDelivery;
 use App\Models\NotificationDeliveryRetry;
@@ -179,6 +183,144 @@ class NotificationDeliveryHistoryTest extends TestCase
             'action' => 'notification.retry',
             'actor_user_id' => $actor->getKey(),
         ]);
+    }
+
+    public function test_a_failed_security_notification_can_be_retried(): void
+    {
+        Mail::fake();
+
+        $actor = $this->createSuperAdmin();
+        $target = User::factory()->create();
+
+        $delivery = NotificationDelivery::factory()->failed()->create([
+            'user_id' => $target->getKey(),
+            'recipient_email' => $target->email,
+            'notification_type' => 'account_deactivated',
+        ]);
+
+        $this->actingAs($actor)
+            ->from(route('settings.notifications'))
+            ->post(route('settings.notifications.retry', $delivery))
+            ->assertRedirect(route('settings.notifications'))
+            ->assertSessionHas('status');
+
+        $retry = NotificationDeliveryRetry::query()
+            ->where('notification_delivery_id', $delivery->getKey())
+            ->sole();
+
+        $this->assertSame(NotificationDeliveryRetry::STATUS_DELIVERED, $retry->status);
+
+        Mail::assertSent(
+            AccountDeactivatedMailable::class,
+            fn (AccountDeactivatedMailable $mail): bool => $mail->hasTo($target->email),
+        );
+
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'notification.retry',
+            'actor_user_id' => $actor->getKey(),
+            'target_user_id' => $target->getKey(),
+        ]);
+    }
+
+    public function test_a_password_change_security_notification_can_be_retried(): void
+    {
+        Mail::fake();
+
+        $actor = $this->createSuperAdmin();
+        $target = User::factory()->create();
+
+        $delivery = NotificationDelivery::factory()->failed()->create([
+            'user_id' => $target->getKey(),
+            'recipient_email' => $target->email,
+            'notification_type' => 'password_changed',
+        ]);
+
+        $this->actingAs($actor)
+            ->from(route('settings.notifications'))
+            ->post(route('settings.notifications.retry', $delivery))
+            ->assertRedirect(route('settings.notifications'))
+            ->assertSessionHas('status');
+
+        $retry = NotificationDeliveryRetry::query()
+            ->where('notification_delivery_id', $delivery->getKey())
+            ->sole();
+
+        $this->assertSame(NotificationDeliveryRetry::STATUS_DELIVERED, $retry->status);
+
+        Mail::assertSent(
+            PasswordChangedMailable::class,
+            fn (PasswordChangedMailable $mail): bool => $mail->hasTo($target->email),
+        );
+    }
+
+    public function test_a_role_change_retry_rebuilds_the_message_from_the_audit_snapshot(): void
+    {
+        Mail::fake();
+
+        $actor = $this->createSuperAdmin();
+        $target = User::factory()->create();
+
+        AuditLog::forceCreate([
+            'actor_user_id' => $actor->getKey(),
+            'target_user_id' => $target->getKey(),
+            'action' => 'user.role_changed',
+            'before_values' => ['role_name' => 'Analyst'],
+            'after_values' => ['role_name' => 'Lead'],
+            'created_at' => now()->subMinute(),
+        ]);
+
+        $delivery = NotificationDelivery::factory()->failed()->create([
+            'user_id' => $target->getKey(),
+            'recipient_email' => $target->email,
+            'notification_type' => 'system_role_changed',
+        ]);
+
+        $this->actingAs($actor)
+            ->from(route('settings.notifications'))
+            ->post(route('settings.notifications.retry', $delivery))
+            ->assertRedirect(route('settings.notifications'))
+            ->assertSessionHas('status');
+
+        Mail::assertSent(
+            SystemRoleChangedMailable::class,
+            fn (SystemRoleChangedMailable $mail): bool => $mail->hasTo($target->email)
+                && $mail->previousRoleName === 'Analyst'
+                && $mail->newRoleName === 'Lead',
+        );
+    }
+
+    public function test_verification_and_reset_deliveries_have_no_resend_path(): void
+    {
+        $actor = $this->createSuperAdmin();
+
+        foreach (['email_verification', 'forced_password_reset', 'email_change_verification'] as $type) {
+            $delivery = NotificationDelivery::factory()->failed()->create([
+                'notification_type' => $type,
+            ]);
+
+            $this->actingAs($actor)
+                ->from(route('settings.notifications'))
+                ->post(route('settings.notifications.retry', $delivery))
+                ->assertRedirect(route('settings.notifications'))
+                ->assertSessionHasErrors('retry');
+        }
+
+        $this->assertSame(0, NotificationDeliveryRetry::query()->count());
+    }
+
+    public function test_the_retry_button_renders_for_failed_security_notifications(): void
+    {
+        $actor = $this->createSuperAdmin();
+
+        $delivery = NotificationDelivery::factory()->failed()->create([
+            'recipient_email' => 'deactivated@example.net',
+            'notification_type' => 'account_deactivated',
+        ]);
+
+        $this->actingAs($actor)
+            ->get(route('settings.notifications'))
+            ->assertOk()
+            ->assertSee(route('settings.notifications.retry', $delivery), false);
     }
 
     public function test_a_successful_delivery_cannot_be_retried(): void

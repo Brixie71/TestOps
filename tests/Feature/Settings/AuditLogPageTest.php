@@ -238,6 +238,63 @@ class AuditLogPageTest extends TestCase
 
         $this->assertSame($actor->getKey(), (int) $entry->actor_user_id);
         $this->assertSame('user.deactivated', $entry->after_values['action']);
+        $this->assertSame('csv', $entry->after_values['format']);
+    }
+
+    public function test_the_pdf_export_downloads_a_pdf_attachment(): void
+    {
+        $actor = $this->createSuperAdmin();
+
+        AuditLog::query()->create([
+            'actor_user_id' => $actor->id,
+            'actor_name' => $actor->name,
+            'actor_email' => $actor->email,
+            'action' => 'user.deactivated',
+            'reason' => 'Policy violation.',
+        ]);
+
+        $response = $this->actingAs($actor)
+            ->get(route('settings.audit-logs.export.pdf', ['action' => 'user.deactivated']));
+
+        $response->assertOk();
+        $this->assertMatchesRegularExpression('/^application\/pdf/', (string) $response->headers->get('content-type'));
+        $this->assertMatchesRegularExpression('/attachment; filename=audit-logs-.*\.pdf/', (string) $response->headers->get('content-disposition'));
+        $this->assertStringStartsWith('%PDF-', (string) $response->getContent());
+    }
+
+    public function test_the_pdf_export_generates_an_audit_event_with_the_filters_and_format(): void
+    {
+        $actor = $this->createSuperAdmin();
+
+        $this->actingAs($actor)
+            ->get(route('settings.audit-logs.export.pdf', ['action' => 'user.deactivated']))
+            ->assertOk();
+
+        $entry = AuditLog::query()->where('action', 'audit.exported')->sole();
+
+        $this->assertSame($actor->getKey(), (int) $entry->actor_user_id);
+        $this->assertSame('user.deactivated', $entry->after_values['action']);
+        $this->assertSame('pdf', $entry->after_values['format']);
+    }
+
+    public function test_the_pdf_export_requires_the_audit_permission(): void
+    {
+        $actor = $this->createSystemAdmin(withPermission: false);
+
+        $this->actingAs($actor)
+            ->get(route('settings.audit-logs.export.pdf'))
+            ->assertForbidden();
+    }
+
+    public function test_the_audit_page_renders_the_pdf_export_link(): void
+    {
+        $actor = $this->createSuperAdmin();
+
+        $this->actingAs($actor)
+            ->get(route('settings.audit-logs'))
+            ->assertOk()
+            ->assertSee('Export PDF')
+            ->assertSee(route('settings.audit-logs.export.pdf'), false);
     }
 
     public function test_the_user_details_page_links_back_from_the_audit_filters(): void

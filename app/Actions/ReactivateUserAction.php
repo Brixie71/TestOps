@@ -5,6 +5,7 @@ namespace App\Actions;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\Audit\AuditLogger;
+use App\Services\Notifications\AccountSecurityNotificationService;
 use App\Services\Users\LifecycleConnectionGuard;
 use App\Services\Users\UserLifecycleAuthorizer;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -37,8 +38,10 @@ use RuntimeException;
  *
  * No last-active-Super-Admin restriction applies to reactivation — it can
  * only increase the active count — and previously revoked OAuth credentials
- * are never restored, old database sessions are never restored, and no
- * notification or email behavior is triggered.
+ * are never restored, old database sessions are never restored, and
+ * credentials must be re-issued. After the transaction commits, the
+ * mandatory restoration notification (§14.2) is sent; a delivery failure is
+ * recorded and never rolls back the restoration (§14.1).
  */
 class ReactivateUserAction
 {
@@ -46,6 +49,7 @@ class ReactivateUserAction
         private readonly LifecycleConnectionGuard $connectionGuard,
         private readonly UserLifecycleAuthorizer $authorizer,
         private readonly AuditLogger $auditLogger,
+        private readonly AccountSecurityNotificationService $securityNotifications,
     ) {}
 
     /**
@@ -109,5 +113,7 @@ class ReactivateUserAction
                 ['account_status' => $target->account_status],
             );
         });
+
+        $this->securityNotifications->sendAccountReactivated($target);
     }
 }

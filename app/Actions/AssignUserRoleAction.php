@@ -5,6 +5,7 @@ namespace App\Actions;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\Audit\AuditLogger;
+use App\Services\Notifications\AccountSecurityNotificationService;
 use App\Services\Users\UserLifecycleAuthorizer;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
@@ -27,15 +28,17 @@ use RuntimeException;
  * Only existing system-scoped roles are eligible (§6.1); project-scoped
  * roles are never assignable as system roles. Deactivated accounts must be
  * reactivated before their role can change. The change is audited as
- * `user.role_changed` with the before/after role snapshots. The mandatory
- * role-change notification (§14.2) stays deferred: no user-notification
- * workflow exists yet (same deferral decision as deactivation).
+ * `user.role_changed` with the before/after role snapshots. After the
+ * transaction commits, the mandatory role-change notification (§14.2) is
+ * sent; a delivery failure is recorded and never rolls back the change
+ * (§14.1).
  */
 class AssignUserRoleAction
 {
     public function __construct(
         private readonly UserLifecycleAuthorizer $authorizer,
         private readonly AuditLogger $auditLogger,
+        private readonly AccountSecurityNotificationService $securityNotifications,
     ) {}
 
     /**
@@ -146,5 +149,11 @@ class AssignUserRoleAction
                 ],
             );
         });
+
+        $this->securityNotifications->sendSystemRoleChanged(
+            $target,
+            $beforeRole?->name,
+            $newRole?->name,
+        );
     }
 }

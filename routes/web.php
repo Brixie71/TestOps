@@ -1,20 +1,25 @@
 <?php
 
+use App\Http\Controllers\Auth\EmailChangeVerificationController;
 use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\ForcedPasswordResetController;
 use App\Http\Controllers\Auth\InvitationAcceptanceController;
 use App\Http\Controllers\Auth\InvitationRecoveryController;
 use App\Http\Controllers\AuthenticatedSessionController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\Projects\ProjectMembershipController;
 use App\Http\Controllers\Projects\ProjectOwnershipController;
 use App\Http\Controllers\Settings\AuditLogController;
 use App\Http\Controllers\Settings\BulkUserController;
 use App\Http\Controllers\Settings\NotificationDeliveryHistoryController;
+use App\Http\Controllers\Settings\UserDeletionController;
 use App\Http\Controllers\Settings\UserDirectoryController;
+use App\Http\Controllers\Settings\UserEmailChangeController;
 use App\Http\Controllers\Settings\UserInvitationController;
 use App\Http\Controllers\Settings\UserLifecycleController;
 use App\Http\Controllers\Settings\UserPasswordController;
+use App\Http\Controllers\Settings\UserProfileController;
 use App\Http\Controllers\Settings\UserRoleController;
 use Illuminate\Support\Facades\Route;
 
@@ -78,6 +83,14 @@ Route::middleware('throttle:10,1')->group(function (): void {
 
     Route::post('password-reset/{token}', [ForcedPasswordResetController::class, 'store'])
         ->name('password-reset.store');
+
+    // Self-service email change confirmation (§9.4): the emailed single-use
+    // link authorizes the change; GET never consumes the token.
+    Route::get('email-change/confirm/{token}', [EmailChangeVerificationController::class, 'show'])
+        ->name('email-change.confirm.show');
+
+    Route::post('email-change/confirm/{token}', [EmailChangeVerificationController::class, 'store'])
+        ->name('email-change.confirm.store');
 });
 
 /*
@@ -110,7 +123,21 @@ Route::middleware('auth')->group(function () {
 
 Route::middleware('auth')->group(function () {
     Route::middleware('active.account')->group(function (): void {
-        Route::view('profile', 'profile.index')->name('profile');
+        Route::get('profile', [ProfileController::class, 'edit'])->name('profile');
+
+        Route::patch('profile', [ProfileController::class, 'update'])->name('profile.update');
+
+        Route::patch('profile/password', [ProfileController::class, 'updatePassword'])
+            ->middleware('throttle:10,1')
+            ->name('profile.password.update');
+
+        Route::post('profile/email', [ProfileController::class, 'requestEmailChange'])
+            ->middleware('throttle:10,1')
+            ->name('profile.email.update');
+
+        Route::post('profile/email/cancel', [ProfileController::class, 'cancelEmailChange'])
+            ->middleware('throttle:10,1')
+            ->name('profile.email.cancel');
     });
 });
 
@@ -168,6 +195,25 @@ Route::middleware(['auth', 'active.account', 'permission:users.deactivate'])->gr
 
 /*
 |--------------------------------------------------------------------------
+| Permanent account deletion (Super Admin only) — §7.3
+|--------------------------------------------------------------------------
+|
+| Permanently deleting an account is irreversible and permanently reserved
+| to Super Admin; the action re-checks that restriction server-side. Only
+| previously deactivated accounts qualify, the acting Super Admin confirms
+| their own password and records a reason, and restrictive dependencies
+| (currently owned projects) block the deletion until they are resolved.
+|
+*/
+
+Route::middleware(['auth', 'active.account', 'super.admin'])->group(function (): void {
+    Route::delete('settings/users/{user}/permanent', [UserDeletionController::class, 'destroy'])
+        ->name('settings.users.permanent-delete')
+        ->withTrashed();
+});
+
+/*
+|--------------------------------------------------------------------------
 | System role assignment (Super Admin, and System Admins with `users.roles.assign`)
 |--------------------------------------------------------------------------
 |
@@ -199,13 +245,43 @@ Route::middleware(['auth', 'active.account', 'permission:users.password.manage']
 
 /*
 |--------------------------------------------------------------------------
+| Administrative profile editing (Super Admin, and System Admins with
+| `users.profile.manage`) — §3.1, §6.3
+|--------------------------------------------------------------------------
+|
+| The PATCH endpoint validates the request shape; UpdateUserProfileAction
+| owns the transaction, the self-management restriction, the protected-
+| target restrictions, and the `user.profile_updated` audit. Deactivated
+| accounts are excluded by the implicit binding, so they must be
+| reactivated before their profile can be edited.
+|
+*/
+
+Route::middleware(['auth', 'active.account', 'permission:users.profile.manage'])->group(function (): void {
+    Route::patch('settings/users/{user}/profile', [UserProfileController::class, 'update'])
+        ->name('settings.users.profile.update');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Pending email-change cancellation (Super Admin, and System Admins with
+| `users.email.manage`) — §9.6
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware(['auth', 'active.account', 'permission:users.email.manage'])->group(function (): void {
+    Route::post('settings/users/{user}/email-change/cancel', [UserEmailChangeController::class, 'cancel'])
+        ->name('settings.users.email-change.cancel');
+});
+
+/*
+|--------------------------------------------------------------------------
 | Audit logs (Super Admin, and System Admins with `audit.view`)
 |--------------------------------------------------------------------------
 |
-| §12.4: dedicated audit log page with filtering (§12.5) and a CSV export
-| that uses the same active filters. Every viewing and exporting action
-| itself generates an audit event inside the controller. PDF export is
-| deferred: no PDF library is installed and adding one requires approval.
+| §12.4: dedicated audit log page with filtering (§12.5) and CSV plus PDF
+| exports that use the same active filters. Every viewing and exporting
+| action itself generates an audit event inside the controller.
 |
 */
 
@@ -215,6 +291,9 @@ Route::middleware(['auth', 'active.account', 'permission:audit.view'])->group(fu
 
     Route::get('settings/audit-logs/export', [AuditLogController::class, 'export'])
         ->name('settings.audit-logs.export');
+
+    Route::get('settings/audit-logs/export/pdf', [AuditLogController::class, 'exportPdf'])
+        ->name('settings.audit-logs.export.pdf');
 });
 
 /*

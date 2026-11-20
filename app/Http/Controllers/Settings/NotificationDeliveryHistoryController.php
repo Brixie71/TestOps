@@ -10,6 +10,8 @@ use App\Models\NotificationDeliveryRetry;
 use App\Services\Notifications\InvitationDeliveryService;
 use App\Services\Notifications\NotificationDeliveryRetryService;
 use App\Services\Notifications\NotificationRetryException;
+use App\Services\Notifications\SecurityNotificationRetryService;
+use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,20 +22,24 @@ class NotificationDeliveryHistoryController extends Controller
     private const PAGE_SIZE = 50;
 
     /**
-     * Notification types with a resend path: the manual-retry closure
-     * rotates the invitation credentials behind the failed link request.
-     * Email verification has no administrative resend path (users request
-     * a fresh verification email through their normal workflow), so those
-     * deliveries are never retryable here.
+     * Notification types with a resend path. Invitation links and direct
+     * setup rotate the invitation credentials behind the failed link
+     * request; the security notifications are reconstructed from the
+     * immutable delivery record and audit snapshots. Verification and
+     * password-reset emails carry single-use tokens that are never stored,
+     * so those deliveries are never retryable here — a fresh email must be
+     * requested through its normal workflow.
      */
     private const RETRYABLE_TYPES = [
         InvitationDeliveryService::NOTIFICATION_TYPE_INVITATION_LINK,
         InvitationDeliveryService::NOTIFICATION_TYPE_DIRECT_ACCOUNT_SETUP,
+        ...SecurityNotificationRetryService::RETRYABLE_TYPES,
     ];
 
     public function __construct(
         private readonly NotificationDeliveryRetryService $retryService,
         private readonly ResendUserInvitationAction $resendUserInvitationAction,
+        private readonly SecurityNotificationRetryService $securityRetryService,
     ) {}
 
     /**
@@ -61,11 +67,24 @@ class NotificationDeliveryHistoryController extends Controller
             ->orderBy('notification_type')
             ->pluck('notification_type');
 
-        // Delivery ids that carry a linked invitation link request, so the
-        // view can render retry controls only where a resend path exists.
+        // Delivery ids that carry a resend path, so the view renders retry
+        // controls only where the POST endpoint can actually rebuild the
+        // message: invitation deliveries linked to a link request, and
+        // security notifications reconstructed from their audit context.
+        $pageIds = $deliveries->getCollection()->pluck('id');
+
         $retryableIds = InvitationLinkRequest::query()
-            ->whereIn('delivery_id', $deliveries->getCollection()->pluck('id'))
-            ->pluck('delivery_id');
+            ->whereIn('delivery_id', $pageIds)
+            ->pluck('delivery_id')
+            ->merge(
+                $deliveries->getCollection()
+                    ->filter(fn (NotificationDelivery $delivery): bool => in_array(
+                        $delivery->notification_type,
+                        SecurityNotificationRetryService::RETRYABLE_TYPES,
+                        true,
+                    ))
+                    ->pluck('id')
+            );
 
         return view('settings.notifications', [
             'deliveries' => $deliveries,
@@ -86,13 +105,11 @@ class NotificationDeliveryHistoryController extends Controller
      */
     public function retry(Request $request, NotificationDelivery $delivery): RedirectResponse
     {
-        $linkRequest = InvitationLinkRequest::query()
-            ->where('delivery_id', $delivery->getKey())
-            ->first();
+        $attemptDelivery = $this->retryClosureFor($request, $delivery);
 
-        if (! in_array($delivery->notification_type, self::RETRYABLE_TYPES, true) || $linkRequest === null) {
+        if ($attemptDelivery === null) {
             return back()->withErrors([
-                'retry' => 'This delivery has no automatic resend path. Issue a fresh invitation instead.',
+                'retry' => 'This delivery has no resend path. Request a fresh notification through its normal workflow.',
             ]);
         }
 
@@ -100,7 +117,7 @@ class NotificationDeliveryHistoryController extends Controller
             $attempt = $this->retryService->retry(
                 $request->user(),
                 $delivery,
-                $this->resendUserInvitationAction->retryClosure($request->user()),
+                $attemptDelivery,
             );
         } catch (NotificationRetryException $exception) {
             // Unauthorized and missing records are request-level errors;
@@ -126,6 +143,32 @@ class NotificationDeliveryHistoryController extends Controller
             $attempt->attempt_number,
             $outcome,
         ));
+    }
+
+    /**
+     * Resolve the resend closure for one delivery, or null when the type has
+     * no reconstructible resend path.
+     */
+    private function retryClosureFor(Request $request, NotificationDelivery $delivery): ?Closure
+    {
+        if (in_array($delivery->notification_type, [
+            InvitationDeliveryService::NOTIFICATION_TYPE_INVITATION_LINK,
+            InvitationDeliveryService::NOTIFICATION_TYPE_DIRECT_ACCOUNT_SETUP,
+        ], true)) {
+            $linked = InvitationLinkRequest::query()
+                ->where('delivery_id', $delivery->getKey())
+                ->exists();
+
+            return $linked
+                ? $this->resendUserInvitationAction->retryClosure($request->user())
+                : null;
+        }
+
+        if (! in_array($delivery->notification_type, self::RETRYABLE_TYPES, true)) {
+            return null;
+        }
+
+        return $this->securityRetryService->retryClosure($delivery);
     }
 
     /**

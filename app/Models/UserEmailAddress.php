@@ -25,6 +25,18 @@ class UserEmailAddress extends Model
     public const STATUS_RESERVED = 'reserved';
 
     /**
+     * A self-service email change awaiting verification; the current address
+     * stays active until the pending one is verified (§9.4).
+     */
+    public const STATUS_PENDING = 'pending';
+
+    /**
+     * A previously verified address that was replaced by a newer one; it
+     * remains reserved for this account (§9.2).
+     */
+    public const STATUS_PREVIOUS = 'previous';
+
+    /**
      * Get the user who owns this email address.
      */
     public function user(): BelongsTo
