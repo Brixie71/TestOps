@@ -22,6 +22,7 @@ class NotificationDeliveryFactory extends Factory
             'recipient_email' => fake()->unique()->safeEmail(),
             'notification_type' => 'test_notification',
             'status' => NotificationDelivery::STATUS_DELIVERED,
+            'suppression_reason' => null,
             'failure_code' => null,
             'failure_message' => null,
             'user_message' => null,
@@ -39,6 +40,23 @@ class NotificationDeliveryFactory extends Factory
             'failure_code' => 'mail_transport_failed',
             'failure_message' => 'The mail transport rejected the message.',
             'user_message' => 'Your email could not be delivered. Please try again later.',
+            'delivered_at' => null,
+        ]);
+    }
+
+    /**
+     * Indicate that the notification was suppressed by the recipient's
+     * preferences and never sent.
+     */
+    public function suppressed(
+        string $reason = NotificationDelivery::SUPPRESSION_REASON_PREFERENCE_DISABLED,
+    ): static {
+        return $this->state(fn (array $attributes) => [
+            'status' => NotificationDelivery::STATUS_SUPPRESSED,
+            'suppression_reason' => $reason,
+            'failure_code' => null,
+            'failure_message' => null,
+            'user_message' => null,
             'delivered_at' => null,
         ]);
     }

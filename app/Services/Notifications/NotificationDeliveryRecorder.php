@@ -64,6 +64,27 @@ class NotificationDeliveryRecorder
     }
 
     /**
+     * Record a suppressed delivery: the recipient's preferences disabled the
+     * optional category, so nothing was sent (§14.4). Suppressed rows carry
+     * no failure diagnostics and are never retryable.
+     */
+    public function recordSuppressed(
+        ?User $user,
+        string $recipientEmail,
+        string $notificationType,
+        string $reason = NotificationDelivery::SUPPRESSION_REASON_PREFERENCE_DISABLED,
+    ): ?NotificationDelivery {
+        return $this->persist(fn (): NotificationDelivery => NotificationDelivery::query()->create([
+            'user_id' => $user?->getKey(),
+            'recipient_email' => $recipientEmail,
+            'notification_type' => $notificationType,
+            'status' => NotificationDelivery::STATUS_SUPPRESSED,
+            'suppression_reason' => $reason,
+            'delivered_at' => null,
+        ]));
+    }
+
+    /**
      * Convert a delivery exception into safe diagnostic classifications.
      *
      * The raw exception message is never read or stored, so transport error

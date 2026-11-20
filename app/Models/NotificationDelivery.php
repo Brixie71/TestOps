@@ -27,6 +27,7 @@ use LogicException;
     'recipient_email',
     'notification_type',
     'status',
+    'suppression_reason',
     'failure_code',
     'failure_message',
     'user_message',
@@ -43,6 +44,18 @@ class NotificationDelivery extends Model
     public const STATUS_DELIVERED = 'delivered';
 
     public const STATUS_FAILED = 'failed';
+
+    /**
+     * Deliberately not sent because the recipient's preferences disable the
+     * notification category (§14.4). Never a delivery failure.
+     */
+    public const STATUS_SUPPRESSED = 'suppressed';
+
+    /**
+     * The recipient disabled the optional category in their notification
+     * preferences.
+     */
+    public const SUPPRESSION_REASON_PREFERENCE_DISABLED = 'preference_disabled';
 
     /**
      * The model does not use an updated_at column.
@@ -91,6 +104,22 @@ class NotificationDelivery extends Model
             ->first();
 
         return $latestRetry->status ?? $this->status;
+    }
+
+    /**
+     * Get the user-facing label for a suppression reason, or null when the
+     * delivery was not suppressed.
+     */
+    public function suppressionReasonLabel(): ?string
+    {
+        if ($this->suppression_reason === null) {
+            return null;
+        }
+
+        return match ($this->suppression_reason) {
+            self::SUPPRESSION_REASON_PREFERENCE_DISABLED => 'Disabled in your notification preferences',
+            default => str_replace('_', ' ', ucfirst($this->suppression_reason)),
+        };
     }
 
     /**

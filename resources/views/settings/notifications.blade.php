@@ -55,6 +55,7 @@
                             <option value="" @selected(($filters['status'] ?? '') === '')>All statuses</option>
                             <option value="delivered" @selected(($filters['status'] ?? '') === 'delivered')>Delivered</option>
                             <option value="failed" @selected(($filters['status'] ?? '') === 'failed')>Failed</option>
+                            <option value="suppressed" @selected(($filters['status'] ?? '') === 'suppressed')>Suppressed</option>
                         </x-settings.filter-select>
 
                         <x-settings.filter-select name="type" label="Filter by notification type" class="w-56">
@@ -99,7 +100,7 @@
                                 <th scope="col" class="px-4 py-3">Recipient</th>
                                 <th scope="col" class="px-4 py-3">Type</th>
                                 <th scope="col" class="px-4 py-3">Status</th>
-                                <th scope="col" class="px-4 py-3">Failure reason</th>
+                                <th scope="col" class="px-4 py-3">Reason</th>
                                 <th scope="col" class="px-4 py-3">Retries</th>
                             </tr>
                         </thead>
@@ -143,6 +144,8 @@
                                     <td class="px-4 py-4">
                                         @if ($effectiveStatus === 'delivered')
                                             <span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-500/10 dark:text-emerald-400">Delivered</span>
+                                        @elseif ($effectiveStatus === \App\Models\NotificationDelivery::STATUS_SUPPRESSED)
+                                            <span class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">Suppressed</span>
                                         @else
                                             <span class="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 dark:border-red-900/70 dark:bg-red-500/10 dark:text-red-400">Failed</span>
                                         @endif
@@ -153,7 +156,7 @@
                                         @endif
                                     </td>
                                     <td class="px-4 py-4 max-w-[240px] text-slate-600 dark:text-slate-400">
-                                        {{ $latestRetry?->failure_message ?? $delivery->failure_message ?? '—' }}
+                                        {{ $delivery->suppressionReasonLabel() ?? $latestRetry?->failure_message ?? $delivery->failure_message ?? '—' }}
                                     </td>
                                     <td class="px-4 py-4">
                                         @if ($attemptCount > 0)

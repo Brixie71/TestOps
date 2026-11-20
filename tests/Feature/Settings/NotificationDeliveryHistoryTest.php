@@ -106,6 +106,45 @@ class NotificationDeliveryHistoryTest extends TestCase
             ->assertDontSee('failed@example.net');
     }
 
+    public function test_a_suppressed_delivery_shows_its_reason_and_has_no_retry_control(): void
+    {
+        $actor = $this->createSuperAdmin();
+
+        NotificationDelivery::factory()->suppressed()->create([
+            'recipient_email' => 'suppressed@example.net',
+            'notification_type' => 'project_activity',
+        ]);
+
+        $this->actingAs($actor)
+            ->get(route('settings.notifications'))
+            ->assertOk()
+            ->assertSee('suppressed@example.net')
+            ->assertSee('Suppressed')
+            ->assertSee('Disabled in your notification preferences')
+            ->assertDontSee('Retry');
+    }
+
+    public function test_the_status_filter_restricts_to_suppressed_deliveries(): void
+    {
+        $actor = $this->createSuperAdmin();
+
+        NotificationDelivery::factory()->suppressed()->create([
+            'recipient_email' => 'suppressed@example.net',
+            'notification_type' => 'project_activity',
+        ]);
+
+        NotificationDelivery::factory()->create([
+            'recipient_email' => 'delivered@example.net',
+            'notification_type' => 'project_activity',
+        ]);
+
+        $this->actingAs($actor)
+            ->get(route('settings.notifications', ['status' => 'suppressed']))
+            ->assertOk()
+            ->assertSee('suppressed@example.net')
+            ->assertDontSee('delivered@example.net');
+    }
+
     public function test_the_retry_button_renders_only_for_eligible_failures(): void
     {
         $actor = $this->createSuperAdmin();

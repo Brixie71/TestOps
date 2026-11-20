@@ -44,15 +44,15 @@ class NotificationDeliveryHistoryController extends Controller
 
     /**
      * Email delivery history page (§15.1–15.2): recipient, notification
-     * type, delivery and retry status, failure reason, and retry attempt
-     * history. Original delivery records are immutable; the effective
-     * status derives from the latest retry.
+     * type, delivery, suppression, and retry status, failure or suppression
+     * reason, and retry attempt history. Original delivery records are
+     * immutable; the effective status derives from the latest retry.
      */
     public function index(Request $request): View
     {
         $filters = $request->validate([
             'search' => ['nullable', 'string', 'max:100'],
-            'status' => ['nullable', 'in:delivered,failed'],
+            'status' => ['nullable', 'in:delivered,failed,suppressed'],
             'type' => ['nullable', 'string', 'max:100'],
         ]);
 

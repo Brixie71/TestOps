@@ -373,11 +373,17 @@
                                     <p class="text-xs text-slate-500 dark:text-slate-400">
                                         {{ $delivery->user_message ?: 'Your email could not be delivered. Please try again later.' }}
                                     </p>
+                                @elseif ($status === \App\Models\NotificationDelivery::STATUS_SUPPRESSED)
+                                    <p class="text-xs text-slate-500 dark:text-slate-400">
+                                        {{ $delivery->suppressionReasonLabel() ?? 'Not sent.' }}.
+                                    </p>
                                 @endif
                             </div>
                             <div class="flex items-center gap-3">
                                 @if ($status === \App\Models\NotificationDelivery::STATUS_DELIVERED)
                                     <span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-500/10 dark:text-emerald-400">Delivered</span>
+                                @elseif ($status === \App\Models\NotificationDelivery::STATUS_SUPPRESSED)
+                                    <span class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">Suppressed</span>
                                 @else
                                     <span class="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 dark:border-red-900/70 dark:bg-red-500/10 dark:text-red-400">Failed</span>
                                 @endif

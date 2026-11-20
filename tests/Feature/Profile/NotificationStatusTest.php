@@ -81,6 +81,24 @@ class NotificationStatusTest extends TestCase
             ->assertDontSee('Your email could not be delivered. Please try again later.');
     }
 
+    public function test_a_suppressed_delivery_shows_the_preference_reason(): void
+    {
+        $user = User::factory()->create();
+
+        NotificationDelivery::factory()->suppressed()->create([
+            'user_id' => $user->getKey(),
+            'recipient_email' => $user->email,
+            'notification_type' => 'project_activity',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('profile'))
+            ->assertOk()
+            ->assertSee('Suppressed')
+            ->assertSee('Disabled in your notification preferences.')
+            ->assertDontSee('Failed');
+    }
+
     public function test_the_profile_offers_no_retry_control(): void
     {
         $user = User::factory()->create();
