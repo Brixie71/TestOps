@@ -8,6 +8,7 @@ use App\Actions\RequestEmailChangeAction;
 use App\Actions\UpdateUserProfileAction;
 use App\Models\NotificationDelivery;
 use App\Models\UserEmailAddress;
+use App\Models\UserNotificationPreference;
 use App\Services\Auth\PasswordPolicy;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -43,6 +44,9 @@ class ProfileController extends Controller
                 ->where('user_id', $user->getKey())
                 ->where('status', UserEmailAddress::STATUS_PENDING)
                 ->first(),
+            // §14.3: optional categories default to enabled until the user
+            // saves a preference; security notifications are mandatory.
+            'notificationPreferences' => $user->notificationPreference,
             // §15.6: the account holder's own recent deliveries. Only the
             // user-safe fields are rendered; internal diagnostics stay out.
             'notificationDeliveries' => NotificationDelivery::query()
@@ -110,6 +114,35 @@ class ProfileController extends Controller
         return redirect()
             ->route('profile')
             ->with('status', 'Your password was changed. Your other signed-in sessions have been ended.');
+    }
+
+    /**
+     * Update the signed-in user's optional notification categories (§14.3).
+     *
+     * Security and account activity notifications are mandatory and are not
+     * configurable here. An unchecked optional category is stored as
+     * disabled; the preference is created on first save.
+     */
+    public function updateNotificationPreferences(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'project_activity_enabled' => ['nullable', 'boolean'],
+            'system_announcements_enabled' => ['nullable', 'boolean'],
+        ]);
+
+        $user = $request->user();
+
+        UserNotificationPreference::query()->updateOrCreate(
+            ['user_id' => $user->getKey()],
+            [
+                'project_activity_enabled' => $request->boolean('project_activity_enabled'),
+                'system_announcements_enabled' => $request->boolean('system_announcements_enabled'),
+            ],
+        );
+
+        return redirect()
+            ->route('profile')
+            ->with('status', 'Your notification preferences were updated.');
     }
 
     /**

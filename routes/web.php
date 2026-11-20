@@ -131,6 +131,9 @@ Route::middleware('auth')->group(function () {
             ->middleware('throttle:10,1')
             ->name('profile.password.update');
 
+        Route::patch('profile/notifications', [ProfileController::class, 'updateNotificationPreferences'])
+            ->name('profile.notifications.update');
+
         Route::post('profile/email', [ProfileController::class, 'requestEmailChange'])
             ->middleware('throttle:10,1')
             ->name('profile.email.update');

@@ -278,6 +278,74 @@
             </form>
         </div>
 
+        <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Email notifications</h2>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Security and account activity emails are always sent. Choose which optional categories you want
+                to receive.
+            </p>
+
+            <div class="mt-4 flex items-start justify-between gap-4 rounded-lg border border-slate-200 px-4 py-3 dark:border-slate-800">
+                <div>
+                    <p class="text-sm font-medium text-slate-700 dark:text-slate-300">Security and account activity</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">
+                        Password resets, email verification, and account changes.
+                    </p>
+                </div>
+                <span class="inline-flex shrink-0 items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                    Always on
+                </span>
+            </div>
+
+            <form method="POST" action="{{ route('profile.notifications.update') }}" class="mt-3 space-y-3">
+                @csrf
+                @method('PATCH')
+
+                <label for="notification-project-activity" class="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 px-4 py-3 transition-colors hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/40">
+                    <input
+                        id="notification-project-activity"
+                        type="checkbox"
+                        name="project_activity_enabled"
+                        value="1"
+                        @checked((bool) old('project_activity_enabled', $notificationPreferences?->project_activity_enabled ?? true))
+                        class="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-600 dark:bg-slate-950"
+                    >
+                    <span>
+                        <span class="block text-sm font-medium text-slate-700 dark:text-slate-300">Project activity</span>
+                        <span class="block text-xs text-slate-500 dark:text-slate-400">
+                            Updates about projects you own or belong to.
+                        </span>
+                    </span>
+                </label>
+
+                <label for="notification-system-announcements" class="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 px-4 py-3 transition-colors hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/40">
+                    <input
+                        id="notification-system-announcements"
+                        type="checkbox"
+                        name="system_announcements_enabled"
+                        value="1"
+                        @checked((bool) old('system_announcements_enabled', $notificationPreferences?->system_announcements_enabled ?? true))
+                        class="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-600 dark:bg-slate-950"
+                    >
+                    <span>
+                        <span class="block text-sm font-medium text-slate-700 dark:text-slate-300">System announcements</span>
+                        <span class="block text-xs text-slate-500 dark:text-slate-400">
+                            Maintenance notices and release announcements.
+                        </span>
+                    </span>
+                </label>
+
+                <div class="flex justify-end">
+                    <button
+                        type="submit"
+                        class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:bg-indigo-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900"
+                    >
+                        Save preferences
+                    </button>
+                </div>
+            </form>
+        </div>
+
         {{-- §15.6: the account holder's own notification status. Only the
              user-safe fields are shown — never internal transport errors and
              no retry controls. --}}

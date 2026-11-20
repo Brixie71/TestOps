@@ -583,7 +583,7 @@ A forced reset must use:
 
 Until completion, the affected user may access only the password-reset flow.
 
-The exact token expiration, resend, and rate-limit configuration for password resets remains subject to separate design confirmation.
+Approved configuration: links expire after sixty minutes; at most one link may be issued per account every sixty seconds and five per rolling hour; five failed completion attempts disable the token. No per-IP cap applies because forced resets are issued by an authenticated administrator rather than a guest requester.
 
 ## 11.4 Self-Service Password Change
 
@@ -721,6 +721,8 @@ Users may independently disable Project Activity and System Announcements.
 
 New accounts have both optional categories enabled by default.
 
+Preferences are stored per account in `user_notification_preferences`; an account without a stored row receives both optional categories. Security and account activity notifications have no stored preference.
+
 ## 14.4 Preference Enforcement
 
 Check current notification preferences immediately before delivery.
@@ -732,6 +734,10 @@ Disabled notifications must not be delivered.
 Mandatory security notifications must still be delivered.
 
 Suppressed notifications must be distinguishable from delivery failures in the notification history.
+
+A suppressed notification is recorded as a delivery row with status `suppressed` and the applied reason (for example, preference disabled) in a dedicated suppression-reason field. A suppressed row is never a delivery failure: it carries no failure diagnostics and exposes no retry controls.
+
+Enforcement applies to each optional-category sender as it is introduced. No optional-category notifier exists yet, so no sender currently consults these preferences.
 
 ## 14.5 Administrative Email Cancellation Notification
 
@@ -910,8 +916,6 @@ The following items must be settled before their corresponding implementation be
 
 | Area | Unresolved item |
 |---|---|
-| Password reset | Exact forced-reset token expiration, resend limits, and failed-attempt behavior |
-| Email delivery | Exact representation of suppressed notifications and delivery attempts |
 | Notification preferences | Whether additional notification categories will be needed as project features expand |
 | Email configuration | Actual SMTP/provider configuration and production delivery verification |
 | Deletion dependencies | Final list of restrictive dependencies after the remaining domain modules exist |
@@ -938,7 +942,7 @@ The User Management module is complete only when:
 - Focused and full test suites pass.
 - Deferred decisions are documented.
 
-**Current status:** Requirements consolidation completed. Database schema design and implementation remain pending.
+**Current status:** Core requirements are implemented: account lifecycle, email change and verification limits, profile editing, self-service password change, security notifications and delivery retries, audit page with CSV/PDF export, and bulk operations. Outstanding: delivery-time preference enforcement for optional-category senders (none exist yet), final deletion-dependency list, historical record snapshots, and production email configuration.
 
 **Stage 3B implementation status (user deactivation / reactivation):**
 - Deactivation (`App\Actions\DeactivateUserAction`) uses SoftDeletes only — no new `account_status` value; requires a non-empty reason (max 500 chars); protects the last active Super Admin; revokes user-bound OAuth credentials via `App\Services\Auth\RevokesUserCredentials`; purges only the target user's database sessions on the configured session connection/table; audits `user.deactivated` and `oauth.credentials.revoked` (aggregate counts only, no credential IDs or secrets) inside the lifecycle transaction. The transaction first locks the canonical SUPER_ADMIN system role row (`code = SUPER_ADMIN`, `scope = system`) with `lockForUpdate()` and reloads the target (including soft-deleted rows) and the actor from the database under the lock, so stale pre-transaction models can never drive the checks — the serialization root for the last-active-Super-Admin safeguard (fails closed if the row is missing; SQLite compiles the lock as a no-op, real concurrency is only enforced on PostgreSQL/MySQL).
@@ -946,6 +950,6 @@ The User Management module is complete only when:
 - Authorization (server-side, `App\Services\Users\UserLifecycleAuthorizer` on `PermissionChecker`): `users.deactivate` is seeded to SYSTEM_ADMIN via `UserManagementPermissionSeeder`; SUPER_ADMIN unrestricted; project-scoped roles never grant lifecycle authority; SYSTEM_ADMIN cannot manage SUPER_ADMIN or other SYSTEM_ADMIN accounts; self-deactivation/reactivation denied; last active SUPER_ADMIN protected.
 - Database connection consistency: `App\Services\Users\LifecycleConnectionGuard` fails closed before any lifecycle transaction unless lifecycle, session (null→default), and Passport (null→default) connections resolve to one connection, keeping all changes transactionally atomic.
 - `EnsureActiveAccount` middleware (alias `active.account`) logs out soft-deleted or non-`active` accounts on authenticated web routes (after `auth`; never on login/logout/invitation paths), invalidating the session and regenerating the CSRF token.
-- Deferred by approved decision: pending email-change cancellation (no email-change module exists; integrate when it is implemented), deactivation notification delivery (no user-notification workflow yet; never send email/network work inside lifecycle transactions), permanent deletion (out of scope; `projects.owner_id` restriction remains; no automatic ownership transfer). Email-address history and reservation records are preserved during deactivation.
+- Deferred by approved decision: notification preferences are implemented (model, migration, and profile controls); delivery-time enforcement lands with the first optional-category sender, which does not exist yet, historical snapshot fields for future testing modules, the final restrictive-dependency list (currently `projects.owner_id`), and production SMTP/provider verification. Pending email-change cancellation, deactivation/restoration notifications, and permanent deletion are implemented.
 
 **No code or database changes are authorized by this document alone.**
