@@ -288,10 +288,10 @@
     "semantic_hash": "eb678a17573b8fd4fa9920ec869feb1c"
   },
   "app/Models/Project.php": {
-    "mtime": 1794020542.317332,
-    "seen": 1794506694.49456,
-    "ast_hash": "8852b81c8fe586a883844f732a9428e4",
-    "semantic_hash": "8852b81c8fe586a883844f732a9428e4"
+    "mtime": 1795182954.4752429,
+    "seen": 1795183036.8804724,
+    "ast_hash": "a5c8316ab728e046f4d2502d831f68da",
+    "semantic_hash": ""
   },
   "app/Models/Role.php": {
     "mtime": 1793615378.5897284,
@@ -1885,9 +1885,9 @@
     "semantic_hash": ""
   },
   ".ai/rules/app.md": {
-    "mtime": 1795182531.7891538,
-    "seen": 1795182597.3253167,
-    "ast_hash": "93c807e5c93beeb4498f6865a5e3344b",
+    "mtime": 1795182980.4854476,
+    "seen": 1795183036.8814662,
+    "ast_hash": "04bdc2cd8438095569809ab12f3c459a",
     "semantic_hash": ""
   },
   ".ai/rules/composer-json.md": {
@@ -2860,6 +2860,24 @@
     "mtime": 1795182492.7901225,
     "seen": 1795182597.3253167,
     "ast_hash": "da25cc71450499079cf19389791a58c7",
+    "semantic_hash": ""
+  },
+  "app/Models/TestSuite.php": {
+    "mtime": 1795182949.8807006,
+    "seen": 1795183036.8804724,
+    "ast_hash": "db4396c607e2a691beef82ca60403647",
+    "semantic_hash": ""
+  },
+  "database/migrations/2026_11_20_135544_create_test_suites_table.php": {
+    "mtime": 1795182949.8676438,
+    "seen": 1795183036.8804724,
+    "ast_hash": "c420b1e39cc0139c7afc90ca8aeafa06",
+    "semantic_hash": ""
+  },
+  "tests/Feature/Models/TestSuiteTest.php": {
+    "mtime": 1795182963.0312493,
+    "seen": 1795183036.8814662,
+    "ast_hash": "146b3f03df5d8040b7dcf75736677f3c",
     "semantic_hash": ""
   },
   "package-lock.json": {

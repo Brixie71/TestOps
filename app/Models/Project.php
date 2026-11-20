@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 // Ownership (owner_id) and the automatic-assignment setting are
 // deliberately not mass-assignable; they are controlled through the
@@ -43,6 +44,14 @@ class Project extends Model
             ->withPivot('role_id') // Includes the membership's assigned role
             ->withTimestamps(); // Reads and maintains pivot timestamps
 
+    }
+
+    /**
+     * Get the project's test suites.
+     */
+    public function testSuites(): HasMany
+    {
+        return $this->hasMany(TestSuite::class);
     }
 
     /**
