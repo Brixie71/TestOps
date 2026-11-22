@@ -107,8 +107,9 @@
                 <p class="text-sm font-medium text-slate-700 dark:text-slate-300">Audit history</p>
                 <div class="flex items-center gap-3">
                     <p class="text-xs text-slate-500 dark:text-slate-400" aria-live="polite">
-                        Showing {{ $logs->firstItem() ?? 0 }}&ndash;{{ $logs->lastItem() ?? 0 }}
-                        of {{ $logs->total() }} {{ Str::plural('event', $logs->total()) }}
+                        Showing {{ $datePaginator->firstItem() ?? 0 }}&ndash;{{ $datePaginator->lastItem() ?? 0 }}
+                        of {{ $datePaginator->total() }} {{ Str::plural('day', $datePaginator->total()) }}
+                        &middot; {{ $totalEvents }} {{ Str::plural('event', $totalEvents) }}
                     </p>
 
                     <a
@@ -133,70 +134,94 @@
                 </div>
             </div>
 
-            @if ($logs->isNotEmpty())
+            @if ($dayGroups->isNotEmpty())
                 <div class="overflow-x-auto border-t border-slate-200 dark:border-slate-800">
                     <table class="w-full min-w-[880px] text-left text-sm">
-                        <caption class="sr-only">TestOps audit history</caption>
+                        <caption class="sr-only">TestOps audit history grouped by date</caption>
                         <thead class="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:bg-slate-950/60 dark:text-slate-400">
                             <tr>
-                                <th scope="col" class="px-4 py-3">Timestamp</th>
+                                <th scope="col" class="px-4 py-3">Time</th>
                                 <th scope="col" class="px-4 py-3">Action</th>
                                 <th scope="col" class="px-4 py-3">Actor</th>
                                 <th scope="col" class="px-4 py-3">Target</th>
                                 <th scope="col" class="px-4 py-3">Reason</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-                            @foreach ($logs as $log)
-                                <tr class="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                                    <td class="px-4 py-4 whitespace-nowrap text-slate-500 dark:text-slate-400">
-                                        <time datetime="{{ $log->created_at?->toIso8601String() }}">
-                                            {{ $log->created_at?->format('M d, Y H:i') ?? '—' }}
+                        @foreach ($dayGroups as $day)
+                            <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                                <tr class="bg-slate-50/80 dark:bg-slate-950/40">
+                                    <th colspan="5" scope="colgroup" class="px-4 py-2.5 text-left text-xs font-semibold text-slate-600 dark:text-slate-300">
+                                        <time datetime="{{ $day['date']->toDateString() }}">
+                                            {{ $day['date']->format('M d, Y') }}
                                         </time>
-                                    </td>
-                                    <td class="px-4 py-4">
-                                        <span class="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 font-mono text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                                            {{ $log->action }}
+                                        <span class="ml-2 font-normal text-slate-400 dark:text-slate-500">
+                                            {{ $day['count'] }} {{ Str::plural('event', $day['count']) }}
                                         </span>
-                                    </td>
-                                    <td class="px-4 py-4">
-                                        @if ($log->actor_name || $log->actor_email)
-                                            <span class="text-slate-700 dark:text-slate-300">{{ $log->actor_name ?: '—' }}</span>
-                                            <span class="block text-xs text-slate-400 dark:text-slate-500">{{ $log->actor_email }}</span>
-                                        @else
-                                            <span class="text-slate-400 dark:text-slate-500">system</span>
-                                        @endif
-                                    </td>
-                                    <td class="px-4 py-4">
-                                        @if ($log->target_name || $log->target_email)
-                                            <span class="text-slate-700 dark:text-slate-300">{{ $log->target_name ?: '—' }}</span>
-                                            <span class="block text-xs text-slate-400 dark:text-slate-500">{{ $log->target_email }}</span>
-                                        @else
-                                            <span class="text-slate-400 dark:text-slate-500">—</span>
-                                        @endif
-                                    </td>
-                                    <td class="px-4 py-4 text-slate-600 dark:text-slate-400">
-                                        {{ $log->reason ?: '—' }}
-                                    </td>
+                                    </th>
                                 </tr>
-                            @endforeach
-                        </tbody>
+                                @foreach ($day['groups'] as $group)
+                                    <tr class="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                                        <td class="px-4 py-4">
+                                            <div class="flex max-w-[220px] flex-wrap gap-1">
+                                                @foreach ($group['times'] as $time)
+                                                    <time datetime="{{ $time->toIso8601String() }}" class="inline-flex items-center rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                                                        {{ $time->format('H:i') }}
+                                                    </time>
+                                                @endforeach
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-4">
+                                            <span class="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 font-mono text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                                                {{ $group['action'] }}
+                                            </span>
+                                            @if ($group['count'] > 1)
+                                                <span
+                                                    class="ml-1 inline-flex items-center rounded-full bg-indigo-50 px-1.5 py-0.5 text-[11px] font-semibold text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300"
+                                                    title="Occurrences of this action on this date"
+                                                >
+                                                    &times;{{ $group['count'] }}
+                                                </span>
+                                            @endif
+                                        </td>
+                                        <td class="px-4 py-4">
+                                            @if ($group['actor_name'] || $group['actor_email'])
+                                                <span class="text-slate-700 dark:text-slate-300">{{ $group['actor_name'] ?: '—' }}</span>
+                                                <span class="block text-xs text-slate-400 dark:text-slate-500">{{ $group['actor_email'] }}</span>
+                                            @else
+                                                <span class="text-slate-400 dark:text-slate-500">system</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-4 py-4">
+                                            @if ($group['target_name'] || $group['target_email'])
+                                                <span class="text-slate-700 dark:text-slate-300">{{ $group['target_name'] ?: '—' }}</span>
+                                                <span class="block text-xs text-slate-400 dark:text-slate-500">{{ $group['target_email'] }}</span>
+                                            @else
+                                                <span class="text-slate-400 dark:text-slate-500">—</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-4 py-4 text-slate-600 dark:text-slate-400">
+                                            {{ $group['reason'] ?: '—' }}
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        @endforeach
                     </table>
                 </div>
 
-                @if ($logs->hasPages())
+                @if ($datePaginator->hasPages())
                     <nav aria-label="Audit log pagination" class="flex flex-col gap-3 border-t border-slate-200 px-4 py-4 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
                         <p class="text-xs font-medium text-slate-500 dark:text-slate-400">
                             Page {{ $currentPage }} of {{ $lastPage }}
                         </p>
 
                         <div class="flex items-center gap-1.5">
-                            @if ($logs->onFirstPage())
+                            @if ($datePaginator->onFirstPage())
                                 <span aria-disabled="true" class="inline-flex h-9 cursor-not-allowed items-center rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-400 opacity-60 dark:border-slate-700 dark:text-slate-600">
                                     Previous
                                 </span>
                             @else
-                                <a href="{{ $logs->previousPageUrl() }}" rel="prev" class="inline-flex h-9 items-center rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white">
+                                <a href="{{ $datePaginator->previousPageUrl() }}" rel="prev" class="inline-flex h-9 items-center rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white">
                                     Previous
                                 </a>
                             @endif
@@ -212,15 +237,15 @@
                                             {{ $page }}
                                         </span>
                                     @else
-                                        <a href="{{ $logs->url($page) }}" class="inline-flex h-9 min-w-9 items-center justify-center rounded-lg px-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white">
+                                        <a href="{{ $datePaginator->url($page) }}" class="inline-flex h-9 min-w-9 items-center justify-center rounded-lg px-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white">
                                             {{ $page }}
                                         </a>
                                     @endif
                                 @endforeach
                             </div>
 
-                            @if ($logs->hasMorePages())
-                                <a href="{{ $logs->nextPageUrl() }}" rel="next" class="inline-flex h-9 items-center rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white">
+                            @if ($datePaginator->hasMorePages())
+                                <a href="{{ $datePaginator->nextPageUrl() }}" rel="next" class="inline-flex h-9 items-center rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white">
                                     Next
                                 </a>
                             @else

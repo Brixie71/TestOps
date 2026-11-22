@@ -115,6 +115,25 @@ class UserDetailsPageTest extends TestCase
             ->assertSee('user.account_created');
     }
 
+    public function test_audit_history_shows_events_performed_by_the_account(): void
+    {
+        $actor = $this->createSuperAdmin();
+        $target = User::factory()->create();
+
+        AuditLog::query()->create([
+            'actor_user_id' => $target->id,
+            'actor_name' => $target->name,
+            'actor_email' => $target->email,
+            'action' => 'audit.viewed',
+            'created_at' => now(),
+        ]);
+
+        $this->actingAs($actor)
+            ->get(route('settings.users.show', $target))
+            ->assertOk()
+            ->assertSee('audit.viewed');
+    }
+
     private function createSystemRole(string $code, string $name): Role
     {
         return Role::query()->firstOrCreate(

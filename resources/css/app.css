@@ -87,13 +87,13 @@ html.dark input:-webkit-autofill:active {
 */
 
 :root {
-    --tc-border: rgb(168 162 158 / 0.55); /* stone-400 */
+    --tc-border: rgb(226 232 240); /* slate-200 */
     --tc-surface: #ffffff;
-    --tc-surface-elevated: #fbf8f3; /* cream-50 */
-    --tc-line: rgb(231 229 228); /* stone-200 */
-    --tc-line-strong: rgb(214 211 209); /* stone-300 */
-    --tc-text: rgb(41 37 36); /* stone-800 */
-    --tc-muted: rgb(120 113 108); /* stone-500 */
+    --tc-surface-elevated: rgb(248 250 252); /* slate-50 */
+    --tc-line: rgb(226 232 240); /* slate-200 */
+    --tc-line-strong: rgb(203 213 225); /* slate-300 */
+    --tc-text: rgb(15 23 42); /* slate-900 */
+    --tc-muted: rgb(100 116 139); /* slate-500 */
 }
 
 html.dark {
@@ -127,8 +127,14 @@ html.dark {
     width: calc(var(--theme-panel-width) + var(--theme-handle-width));
     overflow: hidden;
     pointer-events: auto;
+    border-radius: 12px 0 0 12px;
+    box-shadow: 0 4px 14px rgb(15 23 42 / 0.06);
     transform: translateX(var(--theme-panel-width));
     transition: transform 0.24s ease;
+}
+
+html.dark .theme-card {
+    box-shadow: 0 4px 14px rgb(0 0 0 / 0.3);
 }
 
 /* Open state — moves the whole card into view */
@@ -150,12 +156,7 @@ html.dark {
     background: var(--tc-surface);
     color: var(--tc-text);
     cursor: pointer;
-    box-shadow: 0 10px 30px rgb(28 25 23 / 0.12);
     transition: background-color 0.15s ease;
-}
-
-html.dark .theme-handle {
-    box-shadow: 0 10px 30px rgb(0 0 0 / 0.45);
 }
 
 .theme-handle:hover {
@@ -199,11 +200,6 @@ html.dark .theme-icon-moon {
     border-right: 0;
     border-radius: 12px 0 0 12px;
     background: var(--tc-surface-elevated);
-    box-shadow: 0 24px 48px rgb(28 25 23 / 0.14);
-}
-
-html.dark .theme-card-body {
-    box-shadow: 0 24px 48px rgb(0 0 0 / 0.5);
 }
 
 /* Disable interaction while closed */
@@ -224,6 +220,23 @@ html.dark .theme-card-body {
     font-size: 0.8rem;
     line-height: 1.45;
     color: var(--tc-muted);
+}
+
+/* Toggle icon shows the mode the button switches to */
+.theme-toggle-sun {
+    display: none;
+}
+
+.theme-toggle-moon {
+    display: block;
+}
+
+html.dark .theme-toggle-sun {
+    display: block;
+}
+
+html.dark .theme-toggle-moon {
+    display: none;
 }
 
 /* Light / Dark mode buttons */
@@ -253,17 +266,6 @@ html.dark .theme-card-body {
 .theme-mode-button:focus-visible {
     outline: 2px solid rgb(99 102 241);
     outline-offset: 2px;
-}
-
-/* Active theme is marked with aria-pressed="true" by the theme script */
-.theme-mode-button[aria-pressed="true"] {
-    border-color: rgb(99 102 241);
-    background: rgb(99 102 241 / 0.08);
-    color: rgb(79 70 229);
-}
-
-html.dark .theme-mode-button[aria-pressed="true"] {
-    color: rgb(165 180 252); /* indigo-300 */
 }
 
 @media (prefers-reduced-motion: reduce) {

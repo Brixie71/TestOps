@@ -13,6 +13,8 @@ use App\Http\Controllers\Projects\ProjectOwnershipController;
 use App\Http\Controllers\Settings\AuditLogController;
 use App\Http\Controllers\Settings\BulkUserController;
 use App\Http\Controllers\Settings\NotificationDeliveryHistoryController;
+use App\Http\Controllers\Settings\PermissionController;
+use App\Http\Controllers\Settings\RoleController;
 use App\Http\Controllers\Settings\UserDeletionController;
 use App\Http\Controllers\Settings\UserDirectoryController;
 use App\Http\Controllers\Settings\UserEmailChangeController;
@@ -146,15 +148,17 @@ Route::middleware('auth')->group(function () {
 
 /*
 |--------------------------------------------------------------------------
-| Settings (Super Admin only) — navigation destinations, no CRUD yet
+| Settings (Super Admin only) - overviews and role management
 |--------------------------------------------------------------------------
 */
 
 Route::middleware(['auth', 'super.admin'])->name('settings.')->group(function () {
     Route::middleware('active.account')->group(function (): void {
         Route::view('settings', 'settings.index')->name('index');
-        Route::view('settings/roles', 'settings.roles')->name('roles');
-        Route::view('settings/permissions', 'settings.permissions')->name('permissions');
+        Route::get('settings/roles', [RoleController::class, 'index'])->name('roles');
+        Route::post('settings/roles', [RoleController::class, 'store'])->name('roles.store');
+        Route::patch('settings/roles/{role}', [RoleController::class, 'update'])->name('roles.update');
+        Route::get('settings/permissions', [PermissionController::class, 'index'])->name('permissions');
         Route::view('settings/about', 'settings.about')->name('about');
     });
 });

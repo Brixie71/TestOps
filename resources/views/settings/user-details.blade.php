@@ -451,7 +451,9 @@
                 <div class="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
                     <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-800">
                         <h3 class="text-sm font-semibold text-slate-900 dark:text-white">Audit history</h3>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">Latest {{ $auditHistory->count() }} events</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">
+                            Latest {{ $auditHistory->count() }} events by or about this account
+                        </p>
                     </div>
                     @if ($auditHistory->isNotEmpty())
                         <ul class="divide-y divide-slate-100 dark:divide-slate-800">

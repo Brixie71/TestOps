@@ -164,7 +164,9 @@ class UserDirectoryController extends Controller
         $canManageAll = $this->permissionChecker->isSuperAdmin($actor);
 
         $auditHistory = AuditLog::query()
-            ->where('target_user_id', $target->getKey())
+            ->where(fn (Builder $query) => $query
+                ->where('target_user_id', $target->getKey())
+                ->orWhere('actor_user_id', $target->getKey()))
             ->orderByDesc('id')
             ->limit(15)
             ->get();

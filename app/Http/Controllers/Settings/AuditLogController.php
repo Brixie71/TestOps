@@ -9,13 +9,19 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AuditLogController extends Controller
 {
-    private const PAGE_SIZE = 50;
+    private const DATES_PER_PAGE = 7;
+
+    private const AUDIT_VIEWED_SESSION_KEY = 'audit.viewed_logged';
 
     public function __construct(
         private readonly AuditLogger $auditLogger,
@@ -23,33 +29,56 @@ class AuditLogController extends Controller
 
     /**
      * Dedicated audit log page (§12.4): filtering by actor, target user,
-     * action type, and date range (§12.5). Every viewing action itself
-     * generates an audit event.
+     * action type, and date range (§12.5).
+     *
+     * Viewing the page is itself audited once per browser session, so
+     * navigating back and forth does not flood the history with duplicate
+     * `audit.viewed` rows. Results are grouped per calendar date; repeated
+     * occurrences of the same action keep one row with an occurrence count
+     * and the list of times it happened on that date.
      */
     public function index(Request $request): View
     {
         $filters = $this->validatedFilters($request);
 
-        $logs = $this->filteredQuery($filters)
-            ->orderByDesc('id')
-            ->paginate(self::PAGE_SIZE)
-            ->withQueryString();
+        $dates = $this->filteredQuery($filters)
+            ->selectRaw($this->dateExpression().' as day')
+            ->distinct()
+            ->orderByDesc('day')
+            ->pluck('day')
+            ->map(fn ($day): string => (string) $day)
+            ->values();
 
-        $this->auditLogger->log(
-            $request->user(),
-            null,
-            'audit.viewed',
-            null,
-            $this->auditContext($filters),
-        );
+        $currentPage = Paginator::resolveCurrentPage();
+        $datePaginator = (new LengthAwarePaginator(
+            $dates->slice(($currentPage - 1) * self::DATES_PER_PAGE, self::DATES_PER_PAGE)->values(),
+            $dates->count(),
+            self::DATES_PER_PAGE,
+            $currentPage,
+            ['path' => Paginator::resolveCurrentPath(), 'query' => $request->query()],
+        ))->withQueryString();
+
+        $dayGroups = $this->groupByDate($filters, $datePaginator->items());
+        $totalEvents = $this->filteredQuery($filters)->count();
+
+        if (! $request->session()->has(self::AUDIT_VIEWED_SESSION_KEY)) {
+            $this->auditLogger->log(
+                $request->user(),
+                null,
+                'audit.viewed',
+                null,
+                $this->auditContext($filters),
+            );
+
+            $request->session()->put(self::AUDIT_VIEWED_SESSION_KEY, true);
+        }
 
         $actions = AuditLog::query()
             ->distinct()
             ->orderBy('action')
             ->pluck('action');
 
-        $currentPage = $logs->currentPage();
-        $lastPage = $logs->lastPage();
+        $lastPage = $datePaginator->lastPage();
 
         // Same windowed page list as the user directory.
         $pageWindow = $lastPage <= 7
@@ -63,7 +92,9 @@ class AuditLogController extends Controller
         $hasFilters = collect($filters)->filter(fn ($value): bool => $value !== null && $value !== '')->isNotEmpty();
 
         return view('settings.audit-logs', [
-            'logs' => $logs,
+            'dayGroups' => $dayGroups,
+            'datePaginator' => $datePaginator,
+            'totalEvents' => $totalEvents,
             'actions' => $actions,
             'filters' => $filters,
             'hasFilters' => $hasFilters,
@@ -156,6 +187,73 @@ class AuditLogController extends Controller
         ])
             ->setPaper('a4', 'landscape')
             ->download('audit-logs-'.$generatedAt->format('Ymd-His').'.pdf');
+    }
+
+    /**
+     * Portable calendar-date expression for the configured connection.
+     */
+    private function dateExpression(): string
+    {
+        return DB::connection()->getDriverName() === 'pgsql'
+            ? 'created_at::date'
+            : 'date(created_at)';
+    }
+
+    /**
+     * Load the events for the shown dates and collapse repeated identical
+     * actions into one entry per day with an occurrence count and the times
+     * they happened.
+     *
+     * @param  array{actor: string|null, target: string|null, action: string|null, date_from: string|null, date_to: string|null}  $filters
+     * @param  array<int, string>  $days
+     * @return Collection<int, array{date: Carbon, count: int, groups: Collection<int, array{action: string, actor_name: string|null, actor_email: string|null, target_name: string|null, target_email: string|null, reason: string|null, count: int, times: Collection<int, Carbon>}>}>
+     */
+    private function groupByDate(array $filters, array $days): Collection
+    {
+        if ($days === []) {
+            return collect();
+        }
+
+        $from = Carbon::parse($days[0])->startOfDay();
+        $to = Carbon::parse($days[count($days) - 1])->endOfDay();
+
+        return $this->filteredQuery($filters)
+            ->whereBetween('created_at', [$from, $to])
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->get()
+            ->groupBy(fn (AuditLog $log): string => $log->created_at?->toDateString() ?? '')
+            ->sortKeysDesc()
+            ->map(function (Collection $events, string $day): array {
+                $groups = $events
+                    ->groupBy(fn (AuditLog $log): string => implode('|', [
+                        $log->action,
+                        $log->actor_name ?? '',
+                        $log->actor_email ?? '',
+                        $log->target_name ?? '',
+                        $log->target_email ?? '',
+                        $log->reason ?? '',
+                    ]))
+                    ->map(fn (Collection $occurrences): array => [
+                        'action' => (string) $occurrences->first()->action,
+                        'actor_name' => $occurrences->first()->actor_name,
+                        'actor_email' => $occurrences->first()->actor_email,
+                        'target_name' => $occurrences->first()->target_name,
+                        'target_email' => $occurrences->first()->target_email,
+                        'reason' => $occurrences->first()->reason,
+                        'count' => $occurrences->count(),
+                        'times' => $occurrences->pluck('created_at')->filter()->sortDesc()->values(),
+                    ])
+                    ->sortByDesc(fn (array $group): int => $group['times']->first()?->getTimestamp() ?? 0)
+                    ->values();
+
+                return [
+                    'date' => Carbon::parse($day),
+                    'count' => $events->count(),
+                    'groups' => $groups,
+                ];
+            })
+            ->values();
     }
 
     /**

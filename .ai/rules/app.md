@@ -31,6 +31,11 @@ Before creating or editing files, read .ai/rules/index.md when this directory ex
 - `PATCH profile/notifications` (`profile.notifications.update`, behind `auth` + `active.account`) updates only the signed-in account's two optional flags; an unchecked category is stored as disabled. Security and account activity notifications are mandatory and have no stored flag, so they must never be gated on a preference.
 - Optional-category senders must resolve the current preference immediately before delivery through `App\Services\Notifications\NotificationPreferenceChecker` and record a suppressed `NotificationDelivery` row (`NotificationDeliveryRecorder::recordSuppressed`, status `suppressed`, reason `preference_disabled`) instead of sending. Suppressed rows appear in the admin history with their reason and are never retryable. No optional-category sender is wired yet.
 
+## RBAC role management
+- `settings/roles` and `settings/permissions` (`Settings\RoleController`, `Settings\PermissionController`, behind `super.admin` + `active.account`) list role definitions with their permissions and registered permissions with the roles that grant them.
+- `POST settings/roles` creates a role (`name`, uppercase `code`, `scope` of `system` or `project`, optional `description`) and audits `role.created`. `PATCH settings/roles/{role}` updates only `name`, `description`, and the assigned permissions and audits `role.updated` with before/after permission codes; `code` and `scope` are immutable after creation.
+- The built-in SUPER_ADMIN system role is protected: it is never offered for editing and both the controller and the view refuse to modify it or its permissions. Role deletion and permission-definition editing are not implemented until those rules are agreed. SYSTEM_ADMIN role management remains unavailable because the routes stay behind `super.admin`.
+
 ## Testing domain (data foundation only)
 - `App\Models\TestSuite` is the only testing-domain model: `project_id` (foreign key, cascade delete), `name`, and an optional `description`. `Project::testSuites()` is the only relationship. No UI, status, workflow, or Case/Run/Result/Defect implementation exists until requirements are approved — do not infer their fields.
 
@@ -41,3 +46,6 @@ Before creating or editing files, read .ai/rules/index.md when this directory ex
 
 ## Audit log access and exports (implemented, §12.4)
 - `App\Http\Controllers\Settings\AuditLogController` serves the filtered audit page and both exports under `audit.view`. CSV and PDF exports reuse `validatedFilters()` + `filteredQuery()`, so every file matches the on-screen filters (§12.5), and each export writes `audit.exported` with the active filters plus `format=csv|pdf`. CSV streams in 500-row chunks; PDF renders `settings.audit-logs-pdf` through `barryvdh/laravel-dompdf` in landscape A4.
+- Viewing the audit page writes `audit.viewed` at most once per browser session (session key `audit.viewed_logged`), so navigation, filtering, and exports never duplicate view events; exports write only `audit.exported`.
+- On-screen results are grouped per calendar date: the date is a separate heading from the times, repeated identical events (action + actor + target + reason) collapse into one row with an occurrence multiplier (`×N`) and the list of times they occurred that date. The page paginates the distinct dates (7 per page), while the event total is shown separately. The exports remain per-event.
+- The user details page audit history shows the latest 15 events where the account is either the actor or the target.

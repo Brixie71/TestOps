@@ -73,6 +73,69 @@ class AuditLogPageTest extends TestCase
         ]);
     }
 
+    public function test_repeated_views_in_one_session_are_audited_once(): void
+    {
+        $actor = $this->createSuperAdmin();
+
+        $this->actingAs($actor)
+            ->get(route('settings.audit-logs'))
+            ->assertOk();
+
+        $this->actingAs($actor)
+            ->get(route('settings.audit-logs'))
+            ->assertOk();
+
+        $this->assertSame(1, AuditLog::query()->where('action', 'audit.viewed')->count());
+    }
+
+    public function test_exporting_does_not_add_a_second_view_event(): void
+    {
+        $actor = $this->createSuperAdmin();
+
+        $this->actingAs($actor)
+            ->get(route('settings.audit-logs'))
+            ->assertOk();
+
+        $this->actingAs($actor)
+            ->get(route('settings.audit-logs.export'))
+            ->assertOk();
+
+        $this->assertSame(1, AuditLog::query()->where('action', 'audit.viewed')->count());
+        $this->assertSame(1, AuditLog::query()->where('action', 'audit.exported')->count());
+    }
+
+    public function test_repeated_actions_on_a_date_are_shown_once_with_a_count_and_time_breakdown(): void
+    {
+        $actor = $this->createSuperAdmin();
+
+        DB::table('audit_logs')->insert([
+            [
+                'actor_user_id' => $actor->getKey(),
+                'actor_name' => $actor->name,
+                'actor_email' => $actor->email,
+                'action' => 'user.deactivated',
+                'reason' => 'Quarterly review.',
+                'created_at' => now()->setTime(9, 15),
+            ],
+            [
+                'actor_user_id' => $actor->getKey(),
+                'actor_name' => $actor->name,
+                'actor_email' => $actor->email,
+                'action' => 'user.deactivated',
+                'reason' => 'Quarterly review.',
+                'created_at' => now()->setTime(10, 45),
+            ],
+        ]);
+
+        $this->actingAs($actor)
+            ->get(route('settings.audit-logs', ['action' => 'user.deactivated']))
+            ->assertOk()
+            ->assertSee(now()->format('M d, Y'))
+            ->assertSee('09:15')
+            ->assertSee('10:45')
+            ->assertSee('&times;2', false);
+    }
+
     public function test_the_actor_filter_matches_name_or_email(): void
     {
         $actor = $this->createSuperAdmin();
