@@ -164,7 +164,7 @@ Notes:
 Because the certificate is self-signed, normal certificate-authority validation cannot succeed. The stack uses **certificate pinning** instead:
 
 1. On the first start (or whenever `haraka/config/tls_key.pem`/`tls_cert.pem` are missing), the entrypoint generates a self-signed certificate for `CN=localhost` with SAN `DNS:localhost, IP:127.0.0.1`, valid 825 days — persisted on the host through the bind mount.
-2. Laravel's `config/mail.php` sets `'verify_peer' => false` — standard CA chain validation is disabled — and passes `MAIL_PEER_FINGERPRINT` to the SMTP transport as the expected certificate fingerprint.
+2. Laravel's `config/mail.php` disables standard CA chain validation whenever `MAIL_PEER_FINGERPRINT` is set (`'verify_peer' => blank(env('MAIL_PEER_FINGERPRINT'))`) and passes that fingerprint to the SMTP transport as the expected certificate. Without a fingerprint — as in production — `verify_peer` stays `true`.
 3. TLS to Haraka succeeds only when the server presents that exact certificate.
 
 This is **not equivalent to public CA validation**. The fingerprint pins trust to one specific local certificate; it works only because the stack is local, loopback-bound, and short-lived. If the certificate is regenerated, the pinned fingerprint changes and connections that still use the old value fail.

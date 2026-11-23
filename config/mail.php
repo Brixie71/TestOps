@@ -47,7 +47,12 @@ return [
             'password' => env('MAIL_PASSWORD'),
             'timeout' => null,
             'require_tls' => true,
-            'verify_peer' => false,
+            // Pinning and CA validation are mutually exclusive: the local Haraka
+            // stack uses a self-signed certificate pinned through
+            // MAIL_PEER_FINGERPRINT, so peer verification is disabled only while
+            // a fingerprint is configured. Production SMTP leaves it unset, which
+            // keeps standard certificate validation on.
+            'verify_peer' => blank(env('MAIL_PEER_FINGERPRINT')),
             'peer_fingerprint' => env('MAIL_PEER_FINGERPRINT'),
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
