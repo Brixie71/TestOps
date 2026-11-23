@@ -11,7 +11,8 @@
             <p class="mt-1.5 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
                 Role definitions are centrally managed by the Super Admin. The built-in SUPER_ADMIN role is immutable;
                 every other role can be renamed and have its permissions reassigned. Role codes and scopes are fixed
-                once a role exists.
+                once a role exists. Custom roles can be deleted while no account or project membership references them;
+                the built-in SUPER_ADMIN, SYSTEM_ADMIN, and PROJECT_ADMIN roles are permanent.
             </p>
         </header>
 
@@ -274,12 +275,42 @@
                                                 Protected
                                             </span>
                                         @else
-                                            <a
-                                                href="{{ route('settings.roles', ['edit' => $role->getKey()]) }}"
-                                                class="text-xs font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"
-                                            >
-                                                Edit
-                                            </a>
+                                            <div class="flex items-center justify-end gap-3">
+                                                <a
+                                                    href="{{ route('settings.roles', ['edit' => $role->getKey()]) }}"
+                                                    class="text-xs font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"
+                                                >
+                                                    Edit
+                                                </a>
+
+                                                @if (in_array($role->code, ['SUPER_ADMIN', 'SYSTEM_ADMIN', 'PROJECT_ADMIN'], true))
+                                                    <span class="inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800 dark:border-amber-900/70 dark:bg-amber-950/40 dark:text-amber-300">
+                                                        Built-in
+                                                    </span>
+                                                @elseif ($role->users_count > 0 || $role->project_members_count > 0)
+                                                    <span
+                                                        class="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                                                        title="Assigned to {{ $role->users_count }} {{ Str::plural('account', $role->users_count) }} and {{ $role->project_members_count }} project {{ Str::plural('membership', $role->project_members_count) }}. Reassign or remove them before deleting it."
+                                                    >
+                                                        In use
+                                                    </span>
+                                                @else
+                                                    <form
+                                                        method="POST"
+                                                        action="{{ route('settings.roles.destroy', $role->getKey()) }}"
+                                                        onsubmit="return confirm('Delete this role? This cannot be undone.');"
+                                                    >
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button
+                                                            type="submit"
+                                                            class="text-xs font-medium text-rose-600 transition hover:text-rose-500 dark:text-rose-400"
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    </form>
+                                                @endif
+                                            </div>
                                         @endif
                                     </td>
                                 </tr>

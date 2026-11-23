@@ -159,7 +159,9 @@ Route::middleware(['auth', 'super.admin'])->name('settings.')->group(function ()
         Route::get('settings/roles', [RoleController::class, 'index'])->name('roles');
         Route::post('settings/roles', [RoleController::class, 'store'])->name('roles.store');
         Route::patch('settings/roles/{role}', [RoleController::class, 'update'])->name('roles.update');
+        Route::delete('settings/roles/{role}', [RoleController::class, 'destroy'])->name('roles.destroy');
         Route::get('settings/permissions', [PermissionController::class, 'index'])->name('permissions');
+        Route::patch('settings/permissions/{permission}', [PermissionController::class, 'update'])->name('permissions.update');
         Route::get('settings/announcements', [AnnouncementController::class, 'index'])->name('announcements');
         Route::post('settings/announcements', [AnnouncementController::class, 'store'])->name('announcements.send');
         Route::view('settings/about', 'settings.about')->name('about');

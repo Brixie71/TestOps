@@ -7,6 +7,7 @@ use App\Models\Permission;
 use App\Models\Role;
 use App\Services\Audit\AuditLogger;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,11 +19,20 @@ use Illuminate\Validation\Rule;
  *
  * The SUPER_ADMIN role is protected: it can never be renamed, re-described,
  * or have its permissions changed. Codes and scopes are immutable once a
- * role exists, and role deletion is not available yet. Every change is
- * audited.
+ * role exists. Deletion is limited to custom roles that no account or
+ * project membership references: the three built-in roles are permanent,
+ * because cascade and null-on-delete foreign keys would otherwise silently
+ * strip authority or project memberships. Every change is audited.
  */
 class RoleController extends Controller
 {
+    /**
+     * Built-in roles that can never be deleted.
+     *
+     * @var array<int, string>
+     */
+    private const UNDELETABLE_ROLE_CODES = ['SUPER_ADMIN', 'SYSTEM_ADMIN', 'PROJECT_ADMIN'];
+
     public function __construct(
         private readonly AuditLogger $auditLogger,
     ) {}
@@ -44,6 +54,10 @@ class RoleController extends Controller
         return view('settings.roles', [
             'roles' => Role::query()
                 ->with('permissions')
+                ->withCount([
+                    'users as users_count' => fn (Builder $query) => $query->withTrashed(),
+                    'projectMembers as project_members_count',
+                ])
                 ->orderBy('scope')
                 ->orderBy('name')
                 ->get(),
@@ -130,6 +144,70 @@ class RoleController extends Controller
         return redirect()
             ->route('settings.roles')
             ->with('status', 'Role updated.');
+    }
+
+    public function destroy(Request $request, Role $role): RedirectResponse
+    {
+        if ($this->isDeletionProtected($role)) {
+            abort(403, 'Built-in roles cannot be deleted.');
+        }
+
+        /** @var array{deleted: bool, users: int, project_members: int} $outcome */
+        $outcome = DB::transaction(function () use ($request, $role): array {
+            $role = Role::query()->lockForUpdate()->find($role->getKey());
+
+            if ($role === null) {
+                abort(404);
+            }
+
+            if ($this->isDeletionProtected($role)) {
+                abort(403, 'Built-in roles cannot be deleted.');
+            }
+
+            $assignedUsers = $role->users()->withTrashed()->count();
+            $projectMembers = $role->projectMembers()->count();
+
+            if ($assignedUsers > 0 || $projectMembers > 0) {
+                return ['deleted' => false, 'users' => $assignedUsers, 'project_members' => $projectMembers];
+            }
+
+            $this->auditLogger->log($request->user(), null, 'role.deleted', [
+                'role_id' => $role->getKey(),
+                'name' => $role->name,
+                'code' => $role->code,
+                'scope' => $role->scope,
+                'description' => $role->description,
+                'permissions' => $role->permissions()->orderBy('code')->pluck('code')->all(),
+            ], null);
+
+            $role->delete();
+
+            return ['deleted' => true, 'users' => 0, 'project_members' => 0];
+        });
+
+        if (! $outcome['deleted']) {
+            return redirect()
+                ->route('settings.roles')
+                ->withErrors([
+                    'role' => sprintf(
+                        '%s is still in use: %d %s and %d project %s reference it. Reassign or remove them before deleting it.',
+                        $role->name,
+                        $outcome['users'],
+                        $outcome['users'] === 1 ? 'account' : 'accounts',
+                        $outcome['project_members'],
+                        $outcome['project_members'] === 1 ? 'membership' : 'memberships',
+                    ),
+                ]);
+        }
+
+        return redirect()
+            ->route('settings.roles')
+            ->with('status', 'Role deleted.');
+    }
+
+    private function isDeletionProtected(Role $role): bool
+    {
+        return in_array($role->code, self::UNDELETABLE_ROLE_CODES, true);
     }
 
     private function isProtected(Role $role): bool

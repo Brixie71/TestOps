@@ -4,9 +4,11 @@ namespace Tests\Feature\Settings;
 
 use App\Models\AuditLog;
 use App\Models\Permission;
+use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class RoleManagementTest extends TestCase
@@ -200,6 +202,167 @@ class RoleManagementTest extends TestCase
         $this->patch(route('settings.roles.update', $role->getKey()), [
             'name' => 'Renamed',
         ])->assertRedirect(route('login'));
+    }
+
+    public function test_a_super_admin_can_delete_an_unused_custom_role(): void
+    {
+        $actor = $this->createSuperAdmin();
+
+        $role = Role::query()->create([
+            'name' => 'Quality Manager',
+            'code' => 'QUALITY_MANAGER',
+            'scope' => 'system',
+            'description' => 'Owns quality reporting.',
+        ]);
+
+        $permission = Permission::query()->create([
+            'name' => 'View Projects',
+            'code' => 'projects.view',
+        ]);
+
+        $role->permissions()->attach($permission);
+
+        $this->actingAs($actor)
+            ->delete(route('settings.roles.destroy', $role->getKey()))
+            ->assertRedirect(route('settings.roles'))
+            ->assertSessionHas('status', 'Role deleted.');
+
+        $this->assertDatabaseMissing('roles', ['code' => 'QUALITY_MANAGER']);
+        $this->assertDatabaseMissing('permission_role', ['role_id' => $role->getKey()]);
+
+        $audit = AuditLog::query()->where('action', 'role.deleted')->sole();
+
+        $this->assertSame($actor->getKey(), $audit->actor_user_id);
+        $this->assertSame('QUALITY_MANAGER', $audit->before_values['code']);
+        $this->assertSame(['projects.view'], $audit->before_values['permissions']);
+        $this->assertNull($audit->after_values);
+    }
+
+    public function test_a_role_assigned_to_an_account_cannot_be_deleted(): void
+    {
+        $actor = $this->createSuperAdmin();
+
+        $role = Role::query()->create([
+            'name' => 'Quality Manager',
+            'code' => 'QUALITY_MANAGER',
+            'scope' => 'system',
+        ]);
+
+        User::factory()->create(['role_id' => $role->getKey()]);
+
+        $this->actingAs($actor)
+            ->delete(route('settings.roles.destroy', $role->getKey()))
+            ->assertRedirect(route('settings.roles'))
+            ->assertSessionHasErrors('role');
+
+        $this->assertDatabaseHas('roles', ['code' => 'QUALITY_MANAGER']);
+        $this->assertDatabaseCount('audit_logs', 0);
+    }
+
+    public function test_a_role_assigned_only_to_a_deactivated_account_cannot_be_deleted(): void
+    {
+        $actor = $this->createSuperAdmin();
+
+        $role = Role::query()->create([
+            'name' => 'Quality Manager',
+            'code' => 'QUALITY_MANAGER',
+            'scope' => 'system',
+        ]);
+
+        User::factory()->create(['role_id' => $role->getKey()])->delete();
+
+        $this->actingAs($actor)
+            ->delete(route('settings.roles.destroy', $role->getKey()))
+            ->assertRedirect(route('settings.roles'))
+            ->assertSessionHasErrors('role');
+
+        $this->assertDatabaseHas('roles', ['code' => 'QUALITY_MANAGER']);
+        $this->assertDatabaseCount('audit_logs', 0);
+    }
+
+    public function test_a_role_referenced_by_a_project_membership_cannot_be_deleted(): void
+    {
+        $actor = $this->createSuperAdmin();
+
+        $role = Role::query()->create([
+            'name' => 'Project Contributor',
+            'code' => 'PROJECT_CONTRIBUTOR',
+            'scope' => 'project',
+        ]);
+
+        $project = Project::factory()->create();
+        $member = User::factory()->create();
+
+        DB::table('project_user')->insert([
+            'project_id' => $project->getKey(),
+            'user_id' => $member->getKey(),
+            'role_id' => $role->getKey(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAs($actor)
+            ->delete(route('settings.roles.destroy', $role->getKey()))
+            ->assertRedirect(route('settings.roles'))
+            ->assertSessionHasErrors('role');
+
+        $this->assertDatabaseHas('roles', ['code' => 'PROJECT_CONTRIBUTOR']);
+        $this->assertDatabaseHas('project_user', ['role_id' => $role->getKey()]);
+        $this->assertDatabaseCount('audit_logs', 0);
+    }
+
+    public function test_built_in_roles_cannot_be_deleted(): void
+    {
+        $actor = $this->createSuperAdmin();
+
+        $roles = collect(['SUPER_ADMIN', 'SYSTEM_ADMIN', 'PROJECT_ADMIN'])->map(
+            fn (string $code): Role => Role::query()->firstOrCreate(
+                ['code' => $code],
+                [
+                    'name' => $code,
+                    'scope' => in_array($code, ['SUPER_ADMIN', 'SYSTEM_ADMIN'], true) ? 'system' : 'project',
+                ],
+            ),
+        );
+
+        foreach ($roles as $role) {
+            $this->actingAs($actor)
+                ->delete(route('settings.roles.destroy', $role->getKey()))
+                ->assertForbidden();
+
+            $this->assertDatabaseHas('roles', ['id' => $role->getKey()]);
+        }
+
+        $this->assertDatabaseCount('audit_logs', 0);
+    }
+
+    public function test_a_system_admin_cannot_delete_roles(): void
+    {
+        $actor = $this->createSystemAdmin();
+
+        $role = Role::query()->create([
+            'name' => 'Quality Manager',
+            'code' => 'QUALITY_MANAGER',
+            'scope' => 'system',
+        ]);
+
+        $this->actingAs($actor)
+            ->delete(route('settings.roles.destroy', $role->getKey()))
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('roles', ['code' => 'QUALITY_MANAGER']);
+    }
+
+    public function test_guests_are_redirected_to_login_when_deleting_a_role(): void
+    {
+        $role = Role::query()->create([
+            'name' => 'Quality Manager',
+            'code' => 'QUALITY_MANAGER',
+            'scope' => 'system',
+        ]);
+
+        $this->delete(route('settings.roles.destroy', $role->getKey()))
+            ->assertRedirect(route('login'));
     }
 
     private function createSuperAdmin(): User

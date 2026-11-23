@@ -1159,15 +1159,15 @@
     "semantic_hash": "6ef689a0c9c985b790729cf48f9c15bb"
   },
   "resources/views/settings/permissions.blade.php": {
-    "mtime": 1795257739.9624405,
-    "seen": 1795257820.3994277,
-    "ast_hash": "8309c841b08818c652fd33cd5ae86967",
+    "mtime": 1795431925.6106327,
+    "seen": 1795432017.387489,
+    "ast_hash": "22148fa95b47a517e4050dfede53d4e0",
     "semantic_hash": ""
   },
   "resources/views/settings/roles.blade.php": {
-    "mtime": 1795346707.049201,
-    "seen": 1795346851.13202,
-    "ast_hash": "29e26e69c0470dd6f3bf9c1b88c65c2b",
+    "mtime": 1795431912.3119514,
+    "seen": 1795432017.387489,
+    "ast_hash": "195ff150f36f34dce9548d9209517fb1",
     "semantic_hash": ""
   },
   "resources/views/settings/users.blade.php": {
@@ -1195,9 +1195,9 @@
     "semantic_hash": "3c6ce2e6d16444282b24a9aa63885563"
   },
   "routes/web.php": {
-    "mtime": 1795431300.5293965,
-    "seen": 1795431402.6001806,
-    "ast_hash": "f5fc37c31ad21319dabab68e3c55bf79",
+    "mtime": 1795431899.3796127,
+    "seen": 1795432017.387489,
+    "ast_hash": "cdddbd5f7601d48f7d2f327708030542",
     "semantic_hash": ""
   },
   "tests/Feature/Actions/AddProjectMemberActionTest.php": {
@@ -1879,15 +1879,15 @@
     "semantic_hash": ""
   },
   ".ai/guides/USER-MANAGEMENT-MODULE.md": {
-    "mtime": 1795431343.268509,
-    "seen": 1795431402.6001806,
-    "ast_hash": "24eb90721862900493d03b56307b7613",
+    "mtime": 1795431976.06042,
+    "seen": 1795432017.387489,
+    "ast_hash": "5865d0867c9dfecdd5a62f07fa986c30",
     "semantic_hash": ""
   },
   ".ai/rules/app.md": {
-    "mtime": 1795431336.8955545,
-    "seen": 1795431402.6001806,
-    "ast_hash": "ada50b2df70b928bc11ee012e97d0b73",
+    "mtime": 1795431971.6669457,
+    "seen": 1795432017.387489,
+    "ast_hash": "28b2a7c8ba03bf5c7ed21ea4d18de2b5",
     "semantic_hash": ""
   },
   ".ai/rules/composer-json.md": {
@@ -2881,15 +2881,15 @@
     "semantic_hash": ""
   },
   "app/Http/Controllers/Settings/PermissionController.php": {
-    "mtime": 1795257718.0348947,
-    "seen": 1795257820.3994277,
-    "ast_hash": "e6427efed83f273e8dc83e825c4f1425",
+    "mtime": 1795431895.924188,
+    "seen": 1795432017.386492,
+    "ast_hash": "57fbcd7d0c74c4ad038cbdd0a3da70cf",
     "semantic_hash": ""
   },
   "app/Http/Controllers/Settings/RoleController.php": {
-    "mtime": 1795346602.7375298,
-    "seen": 1795346851.1310198,
-    "ast_hash": "a243733f3215cf26f24f0efb98d37343",
+    "mtime": 1795431890.8926435,
+    "seen": 1795432017.386492,
+    "ast_hash": "d311cb3422d3be161f82d1e84f0b5501",
     "semantic_hash": ""
   },
   "tests/Feature/Settings/RbacOverviewTest.php": {
@@ -2899,9 +2899,9 @@
     "semantic_hash": ""
   },
   "tests/Feature/Settings/RoleManagementTest.php": {
-    "mtime": 1795346785.7056754,
-    "seen": 1795346851.13202,
-    "ast_hash": "738c52dad525ecccc0c4b444280063dc",
+    "mtime": 1795431950.2649255,
+    "seen": 1795432017.387489,
+    "ast_hash": "05777eb7c2e6ca734ba466a37036a164",
     "semantic_hash": ""
   },
   "resources/views/components/local-time.blade.php": {
@@ -2944,6 +2944,12 @@
     "mtime": 1795431388.8596559,
     "seen": 1795431402.6001806,
     "ast_hash": "64019cf6cc57484037b39bf6c6d8b22f",
+    "semantic_hash": ""
+  },
+  "tests/Feature/Settings/PermissionManagementTest.php": {
+    "mtime": 1795431958.0421817,
+    "seen": 1795432017.387489,
+    "ast_hash": "34f2b8648da5157637f7df6405348e94",
     "semantic_hash": ""
   },
   "package-lock.json": {
