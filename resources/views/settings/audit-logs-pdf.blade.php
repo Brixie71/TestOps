@@ -71,7 +71,7 @@
 
     <h1>TestOps Audit Logs</h1>
     <p class="meta">
-        Generated {{ $generatedAt->format('M d, Y H:i:s') }}
+        Generated <x-local-time :at="$generatedAt" format="M d, Y H:i:s" /> ({{ config('app.display_timezone') }})
         &middot; {{ $logs->count() }} {{ $logs->count() === 1 ? 'event' : 'events' }}
         @if ($activeFilters->isNotEmpty())
             <br>
@@ -84,7 +84,7 @@
         <table>
             <thead>
                 <tr>
-                    <th>Timestamp (UTC)</th>
+                    <th>Timestamp ({{ config('app.display_timezone') }})</th>
                     <th>Action</th>
                     <th>Actor</th>
                     <th>Target</th>
@@ -96,7 +96,7 @@
             <tbody>
                 @foreach ($logs as $log)
                     <tr>
-                        <td class="mono">{{ $log->created_at?->format('Y-m-d H:i:s') ?? '—' }}</td>
+                        <td class="mono"><x-local-time :at="$log->created_at" format="Y-m-d H:i:s" /></td>
                         <td class="mono">{{ $log->action }}</td>
                         <td>
                             {{ $log->actor_name ?: '—' }}

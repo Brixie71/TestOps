@@ -126,7 +126,7 @@ class AuditLogController extends Controller
         return response()->streamDownload(function () use ($filters): void {
             $output = fopen('php://output', 'w');
             fputcsv($output, [
-                'Timestamp (UTC)',
+                'Timestamp ('.$this->displayTimezone().')',
                 'Action',
                 'Actor name',
                 'Actor email',
@@ -142,7 +142,7 @@ class AuditLogController extends Controller
                 ->chunk(500, function ($logs) use ($output): void {
                     foreach ($logs as $log) {
                         fputcsv($output, [
-                            $log->created_at?->format('Y-m-d H:i:s'),
+                            $log->created_at?->copy()->timezone($this->displayTimezone())->format('Y-m-d H:i:s'),
                             $log->action,
                             $log->actor_name,
                             $log->actor_email,
@@ -190,13 +190,34 @@ class AuditLogController extends Controller
     }
 
     /**
-     * Portable calendar-date expression for the configured connection.
+     * Portable calendar-date expression for the configured connection,
+     * evaluated in the display timezone so date grouping and date filters
+     * match the operator's local calendar instead of UTC.
      */
     private function dateExpression(): string
     {
-        return DB::connection()->getDriverName() === 'pgsql'
-            ? 'created_at::date'
-            : 'date(created_at)';
+        $timezone = $this->displayTimezone();
+
+        if (DB::connection()->getDriverName() === 'pgsql') {
+            return "(created_at AT TIME ZONE 'UTC' AT TIME ZONE '{$timezone}')::date";
+        }
+
+        return "date(created_at, '".$this->displayOffset()."')";
+    }
+
+    private function displayTimezone(): string
+    {
+        $timezone = (string) config('app.display_timezone');
+
+        return in_array($timezone, timezone_identifiers_list(), true) ? $timezone : 'UTC';
+    }
+
+    /**
+     * SQLite-friendly UTC offset (minutes) for the display timezone.
+     */
+    private function displayOffset(): string
+    {
+        return sprintf('%+d minutes', now()->timezone($this->displayTimezone())->utcOffset());
     }
 
     /**
@@ -214,17 +235,18 @@ class AuditLogController extends Controller
             return collect();
         }
 
-        $from = Carbon::parse($days[0])->startOfDay();
-        $to = Carbon::parse($days[count($days) - 1])->endOfDay();
+        $timezone = $this->displayTimezone();
+        $from = Carbon::parse($days[0], $timezone)->startOfDay()->utc();
+        $to = Carbon::parse($days[count($days) - 1], $timezone)->endOfDay()->utc();
 
         return $this->filteredQuery($filters)
             ->whereBetween('created_at', [$from, $to])
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->get()
-            ->groupBy(fn (AuditLog $log): string => $log->created_at?->toDateString() ?? '')
+            ->groupBy(fn (AuditLog $log): string => $log->created_at?->copy()->timezone($timezone)->toDateString() ?? '')
             ->sortKeysDesc()
-            ->map(function (Collection $events, string $day): array {
+            ->map(function (Collection $events, string $day) use ($timezone): array {
                 $groups = $events
                     ->groupBy(fn (AuditLog $log): string => implode('|', [
                         $log->action,
@@ -242,13 +264,18 @@ class AuditLogController extends Controller
                         'target_email' => $occurrences->first()->target_email,
                         'reason' => $occurrences->first()->reason,
                         'count' => $occurrences->count(),
-                        'times' => $occurrences->pluck('created_at')->filter()->sortDesc()->values(),
+                        'times' => $occurrences
+                            ->pluck('created_at')
+                            ->filter()
+                            ->map(fn (Carbon $at): Carbon => $at->copy()->timezone($timezone))
+                            ->sortDesc()
+                            ->values(),
                     ])
                     ->sortByDesc(fn (array $group): int => $group['times']->first()?->getTimestamp() ?? 0)
                     ->values();
 
                 return [
-                    'date' => Carbon::parse($day),
+                    'date' => Carbon::parse($day, $timezone),
                     'count' => $events->count(),
                     'groups' => $groups,
                 ];
@@ -294,13 +321,13 @@ class AuditLogController extends Controller
         $query->when($filters['date_from'] ?? null, fn (Builder $q, string $dateFrom) => $q->where(
             'created_at',
             '>=',
-            Carbon::parse($dateFrom)->startOfDay(),
+            Carbon::parse($dateFrom, $this->displayTimezone())->startOfDay()->utc(),
         ));
 
         $query->when($filters['date_to'] ?? null, fn (Builder $q, string $dateTo) => $q->where(
             'created_at',
             '<=',
-            Carbon::parse($dateTo)->endOfDay(),
+            Carbon::parse($dateTo, $this->displayTimezone())->endOfDay()->utc(),
         ));
 
         return $query;

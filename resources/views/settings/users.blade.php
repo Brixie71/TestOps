@@ -264,7 +264,7 @@
                                     </td>
                                     <td class="px-4 py-4 whitespace-nowrap text-slate-500 dark:text-slate-400">
                                         <time datetime="{{ $user->created_at?->toIso8601String() }}">
-                                            {{ $user->created_at?->format('M d, Y') ?? '—' }}
+                                            <x-local-time :at="$user->created_at" format="M d, Y" fallback="—" />
                                         </time>
                                     </td>
                                     <td class="px-4 py-4">

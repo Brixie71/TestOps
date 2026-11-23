@@ -106,7 +106,12 @@ class AuditLogPageTest extends TestCase
 
     public function test_repeated_actions_on_a_date_are_shown_once_with_a_count_and_time_breakdown(): void
     {
+        config(['app.display_timezone' => 'Asia/Kuala_Lumpur']);
+
         $actor = $this->createSuperAdmin();
+
+        $firstRun = now()->timezone('Asia/Kuala_Lumpur')->setTime(9, 15);
+        $secondRun = now()->timezone('Asia/Kuala_Lumpur')->setTime(10, 45);
 
         DB::table('audit_logs')->insert([
             [
@@ -115,7 +120,7 @@ class AuditLogPageTest extends TestCase
                 'actor_email' => $actor->email,
                 'action' => 'user.deactivated',
                 'reason' => 'Quarterly review.',
-                'created_at' => now()->setTime(9, 15),
+                'created_at' => $firstRun->copy()->utc(),
             ],
             [
                 'actor_user_id' => $actor->getKey(),
@@ -123,17 +128,40 @@ class AuditLogPageTest extends TestCase
                 'actor_email' => $actor->email,
                 'action' => 'user.deactivated',
                 'reason' => 'Quarterly review.',
-                'created_at' => now()->setTime(10, 45),
+                'created_at' => $secondRun->copy()->utc(),
             ],
         ]);
 
         $this->actingAs($actor)
             ->get(route('settings.audit-logs', ['action' => 'user.deactivated']))
             ->assertOk()
-            ->assertSee(now()->format('M d, Y'))
+            ->assertSee($firstRun->format('M d, Y'))
             ->assertSee('09:15')
             ->assertSee('10:45')
             ->assertSee('&times;2', false);
+    }
+
+    public function test_events_are_grouped_by_the_display_timezone_date(): void
+    {
+        config(['app.display_timezone' => 'Asia/Kuala_Lumpur']);
+
+        $actor = $this->createSuperAdmin();
+
+        // 16:30 UTC on Nov 22 is 00:30 on Nov 23 in the display timezone.
+        DB::table('audit_logs')->insert([
+            'actor_user_id' => $actor->getKey(),
+            'actor_name' => $actor->name,
+            'actor_email' => $actor->email,
+            'action' => 'user.deactivated',
+            'created_at' => '2026-11-22 16:30:00',
+        ]);
+
+        $this->actingAs($actor)
+            ->get(route('settings.audit-logs', ['action' => 'user.deactivated']))
+            ->assertOk()
+            ->assertSee('Nov 23, 2026')
+            ->assertSee('00:30')
+            ->assertDontSee('Nov 22, 2026');
     }
 
     public function test_the_actor_filter_matches_name_or_email(): void

@@ -127,7 +127,7 @@
                                 <tr class="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                                     <td class="px-4 py-4 whitespace-nowrap text-slate-500 dark:text-slate-400">
                                         <time datetime="{{ $delivery->created_at?->toIso8601String() }}">
-                                            {{ $delivery->created_at?->format('M d, Y H:i') ?? '—' }}
+                                            <x-local-time :at="$delivery->created_at" fallback="—" />
                                         </time>
                                     </td>
                                     <td class="px-4 py-4">
@@ -167,7 +167,7 @@
                                                         <span class="{{ $retry->status === 'delivered' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400' }}">
                                                             {{ $retry->status }}
                                                         </span>
-                                                        <span class="block text-[11px]">{{ $retry->attempted_at?->format('M d, H:i') }}</span>
+                                                        <span class="block text-[11px]"><x-local-time :at="$retry->attempted_at" format="M d, H:i" /></span>
                                                     </li>
                                                 @endforeach
                                             </ul>

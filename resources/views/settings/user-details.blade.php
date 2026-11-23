@@ -71,12 +71,12 @@
                         <div class="flex justify-between gap-3">
                             <dt class="text-slate-500 dark:text-slate-400">Email verified</dt>
                             <dd class="text-right font-medium text-slate-700 dark:text-slate-300">
-                                {{ $target->email_verified_at ? $target->email_verified_at->format('M d, Y') : 'No' }}
+                                <x-local-time :at="$target->email_verified_at" format="M d, Y" fallback="No" />
                             </dd>
                         </div>
                         <div class="flex justify-between gap-3">
                             <dt class="text-slate-500 dark:text-slate-400">Date created</dt>
-                            <dd class="text-right font-medium text-slate-700 dark:text-slate-300">{{ $target->created_at?->format('M d, Y') ?? '—' }}</dd>
+                            <dd class="text-right font-medium text-slate-700 dark:text-slate-300"><x-local-time :at="$target->created_at" format="M d, Y" fallback="—" /></dd>
                         </div>
                     </dl>
 
@@ -358,7 +358,7 @@
                         <p class="mt-2 text-sm text-amber-700 dark:text-amber-400">
                             An account offer is awaiting acceptance
                             @if ($latestInvitation->expires_at !== null)
-                                (expires {{ $latestInvitation->expires_at->format('M d, Y H:i') }}).
+                                (expires <x-local-time :at="$latestInvitation->expires_at" />).
                             @else
                                 .
                             @endif
@@ -471,7 +471,7 @@
                                         </p>
                                     </div>
                                     <time class="whitespace-nowrap text-xs text-slate-500 dark:text-slate-400" datetime="{{ $entry->created_at?->toIso8601String() }}">
-                                        {{ $entry->created_at?->format('M d, Y H:i') ?? '—' }}
+                                        <x-local-time :at="$entry->created_at" fallback="—" />
                                     </time>
                                 </li>
                             @endforeach
@@ -503,7 +503,7 @@
                                             <span class="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">{{ $delivery->status }}</span>
                                         @endif
                                         <time class="whitespace-nowrap text-xs text-slate-500 dark:text-slate-400" datetime="{{ $delivery->created_at?->toIso8601String() }}">
-                                            {{ $delivery->created_at?->format('M d, Y H:i') ?? '—' }}
+                                            <x-local-time :at="$delivery->created_at" fallback="—" />
                                         </time>
                                     </div>
                                 </li>
