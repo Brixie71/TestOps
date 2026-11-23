@@ -10,6 +10,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\Projects\ProjectMembershipController;
 use App\Http\Controllers\Projects\ProjectOwnershipController;
+use App\Http\Controllers\Settings\AnnouncementController;
 use App\Http\Controllers\Settings\AuditLogController;
 use App\Http\Controllers\Settings\BulkUserController;
 use App\Http\Controllers\Settings\NotificationDeliveryHistoryController;
@@ -159,6 +160,8 @@ Route::middleware(['auth', 'super.admin'])->name('settings.')->group(function ()
         Route::post('settings/roles', [RoleController::class, 'store'])->name('roles.store');
         Route::patch('settings/roles/{role}', [RoleController::class, 'update'])->name('roles.update');
         Route::get('settings/permissions', [PermissionController::class, 'index'])->name('permissions');
+        Route::get('settings/announcements', [AnnouncementController::class, 'index'])->name('announcements');
+        Route::post('settings/announcements', [AnnouncementController::class, 'store'])->name('announcements.send');
         Route::view('settings/about', 'settings.about')->name('about');
     });
 });

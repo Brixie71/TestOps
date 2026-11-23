@@ -26,6 +26,7 @@
         [
             'label' => 'System',
             'items' => [
+                ['label' => 'Announcements', 'route' => 'settings.announcements', 'active' => $isActive('settings.announcements*')],
                 ['label' => 'About', 'route' => 'settings.about', 'active' => $isActive('settings.about')],
             ],
         ],
