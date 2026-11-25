@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * One frozen test case inside a run.
@@ -38,6 +39,14 @@ class TestRunCase extends Model
     public function testCase(): BelongsTo
     {
         return $this->belongsTo(TestCase::class);
+    }
+
+    /**
+     * Get the current recorded result, if any.
+     */
+    public function result(): HasOne
+    {
+        return $this->hasOne(TestResult::class, 'test_run_case_id');
     }
 
     /**

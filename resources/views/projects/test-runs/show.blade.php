@@ -16,6 +16,20 @@
             'minor' => 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/70 dark:bg-sky-500/10 dark:text-sky-400',
             'trivial' => 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400',
         ];
+        $resultStyles = [
+            'passed' => 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-500/10 dark:text-emerald-400',
+            'failed' => 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/70 dark:bg-red-500/10 dark:text-red-400',
+            'blocked' => 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/70 dark:bg-amber-500/10 dark:text-amber-400',
+            'skipped' => 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400',
+            'not_run' => 'border-slate-200 bg-white text-slate-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400',
+        ];
+        $resultLabels = [
+            'passed' => 'Passed',
+            'failed' => 'Failed',
+            'blocked' => 'Blocked',
+            'skipped' => 'Skipped',
+            'not_run' => 'Not run',
+        ];
     @endphp
 
     <div class="mx-auto w-full max-w-5xl space-y-6">
@@ -121,6 +135,66 @@
                             @endforeach
                         </ol>
                     @endif
+
+                    <div class="border-t border-slate-200 px-5 py-4 dark:border-slate-800">
+                        @if ($runCase->result)
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="rounded-md border px-2 py-0.5 text-xs font-medium {{ $resultStyles[$runCase->result->status] ?? $resultStyles['not_run'] }}">
+                                    {{ $resultLabels[$runCase->result->status] ?? ucfirst($runCase->result->status) }}
+                                </span>
+                                <span class="text-xs text-slate-500 dark:text-slate-400">
+                                    Recorded by {{ $runCase->result->recorder?->name ?? 'a deleted account' }}
+                                    <x-local-time :at="$runCase->result->recorded_at" />
+                                </span>
+                            </div>
+
+                            @if ($runCase->result->notes)
+                                <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">{{ $runCase->result->notes }}</p>
+                            @endif
+                        @else
+                            <p class="text-xs text-slate-500 dark:text-slate-400">No result recorded.</p>
+                        @endif
+
+                        @if ($run->isOpen() && $canManage)
+                            <form method="POST" action="{{ route('projects.test-runs.results.store', [$project, $run]) }}" class="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
+                                @csrf
+                                <input type="hidden" name="test_run_case_id" value="{{ $runCase->id }}">
+
+                                <div>
+                                    <label for="result-status-{{ $runCase->id }}" class="block text-xs font-medium text-slate-600 dark:text-slate-400">Result</label>
+                                    <select
+                                        id="result-status-{{ $runCase->id }}"
+                                        name="status"
+                                        required
+                                        class="mt-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                                    >
+                                        @foreach (\App\Models\TestResult::STATUSES as $status)
+                                            <option value="{{ $status }}" @selected(($runCase->result->status ?? null) === $status)>{{ $resultLabels[$status] }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+
+                                <div class="flex-1">
+                                    <label for="result-notes-{{ $runCase->id }}" class="block text-xs font-medium text-slate-600 dark:text-slate-400">Notes</label>
+                                    <input
+                                        id="result-notes-{{ $runCase->id }}"
+                                        name="notes"
+                                        type="text"
+                                        maxlength="2000"
+                                        value="{{ $runCase->result->notes ?? '' }}"
+                                        class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                                    >
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900"
+                                >
+                                    Save result
+                                </button>
+                            </form>
+                        @endif
+                    </div>
                 </article>
             @endforeach
         </section>

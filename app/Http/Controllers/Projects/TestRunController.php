@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Projects;
 
 use App\Actions\ManageTestRunAction;
+use App\Actions\RecordTestResultAction;
 use App\Http\Controllers\Controller;
 use App\Models\Project;
+use App\Models\TestResult;
 use App\Models\TestRun;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -21,6 +23,7 @@ class TestRunController extends Controller
 {
     public function __construct(
         private readonly ManageTestRunAction $manageTestRunAction,
+        private readonly RecordTestResultAction $recordTestResultAction,
     ) {}
 
     public function index(Request $request, Project $project): View
@@ -69,9 +72,38 @@ class TestRunController extends Controller
 
         return view('projects.test-runs.show', [
             'project' => $project,
-            'run' => $testRun->load(['cases', 'author']),
+            'run' => $testRun->load(['cases.result.recorder', 'author']),
             'canManage' => Gate::allows('manageTestRuns', $project),
         ]);
+    }
+
+    public function recordResult(Request $request, Project $project, TestRun $testRun): RedirectResponse
+    {
+        Gate::authorize('manageTestRuns', $project);
+
+        $validated = $request->validate([
+            'test_run_case_id' => ['required', 'integer'],
+            'status' => ['required', Rule::in(TestResult::STATUSES)],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        // Resolve the frozen case inside the run: an id from another run is
+        // a 404, never a cross-run write.
+        $runCase = $testRun->cases()->findOrFail((int) $validated['test_run_case_id']);
+
+        $notes = trim((string) ($validated['notes'] ?? ''));
+
+        $this->recordTestResultAction->record(
+            $request->user(),
+            $testRun,
+            $runCase,
+            $validated['status'],
+            $notes === '' ? null : $notes,
+        );
+
+        return redirect()
+            ->route('projects.test-runs.show', [$project, $testRun])
+            ->with('status', 'Result recorded for case #'.$runCase->position.'.');
     }
 
     public function complete(Request $request, Project $project, TestRun $testRun): RedirectResponse

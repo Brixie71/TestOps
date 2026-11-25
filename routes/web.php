@@ -159,6 +159,12 @@ Route::middleware('auth')->group(function () {
         Route::patch('projects/{project}/test-runs/{testRun}/abort', [TestRunController::class, 'abort'])
             ->scopeBindings()
             ->name('projects.test-runs.abort');
+
+        // Results: one current outcome per frozen case, recorded while the
+        // run is open. Reuses the run abilities (viewTestRuns/manageTestRuns).
+        Route::post('projects/{project}/test-runs/{testRun}/results', [TestRunController::class, 'recordResult'])
+            ->scopeBindings()
+            ->name('projects.test-runs.results.store');
     });
 });
 
