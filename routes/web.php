@@ -6,6 +6,7 @@ use App\Http\Controllers\Auth\ForcedPasswordResetController;
 use App\Http\Controllers\Auth\InvitationAcceptanceController;
 use App\Http\Controllers\Auth\InvitationRecoveryController;
 use App\Http\Controllers\AuthenticatedSessionController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\Projects\DefectController;
@@ -102,14 +103,15 @@ Route::middleware('throttle:10,1')->group(function (): void {
 
 /*
 |--------------------------------------------------------------------------
-| Dashboard (any authenticated user) — placeholder
+| Dashboard (any authenticated user)
 |--------------------------------------------------------------------------
 */
 
 Route::middleware('auth')->group(function () {
-    // Minimal authenticated landing page. Dashboard features are deferred.
+    // Read-only summary scoped to the projects the user may see. Detail
+    // lists and navigation are added in later slices.
     Route::middleware('active.account')->group(function (): void {
-        Route::view('dashboard', 'dashboard.index')->name('dashboard');
+        Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     });
 
     // Individual project read pages. Visibility is backend-enforced: index()

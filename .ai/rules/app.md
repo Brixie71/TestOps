@@ -40,6 +40,9 @@ Before creating or editing files, read .ai/rules/index.md when this directory ex
 ## Project visibility scope
 - `App\Services\Authorization\ProjectVisibility` is the query-side source for project scope: `viewableProjects()` mirrors `ProjectPolicy::view()` for the directory and dashboard, and `projectIdsFor($user, $code)` mirrors the per-ability methods (`viewTestCases`, `viewTestRuns`, `viewDefects`, and future ones). New read surfaces must scope through it instead of re-deriving role rules; `ProjectPolicy` stays the per-project authority. `tests/Feature/Services/Authorization/ProjectVisibilityTest.php` asserts parity against `Gate`, so a policy change requires the matching service change.
 
+## Dashboard (read-only summary)
+- `DashboardController@index` (`GET /dashboard`, `auth` + `active.account`) renders `dashboard.index` with KPI cards only: visible projects, open runs, results recorded in the last 7 days, and open or in-progress defects. Every count is constrained through `ProjectVisibility`; a testing card is omitted, not zeroed, when the user's ability covers no project. Detail lists, sidebar navigation, and charts belong to later slices.
+
 ## Testing domain (suites, cases, runs, results, and defects implemented)
 - `App\Models\TestSuite` (project_id, name, description) groups cases; `App\Models\TestCase` (project_id, test_suite_id, sequence, title, description, status, severity, created_by) and `App\Models\TestCaseStep` (test_case_id, position, action, expected_result) hold authored cases. References: `Project::testSuites()`, `Project::testCases()`, `TestSuite::testCases()`, `TestCase::steps()`.
 - `App\Models\TestRun` (project_id, sequence, name, status, created_by, started_at, completed_at) and `App\Models\TestRunCase` (test_run_id, test_case_id, position, title, severity, steps JSON) hold execution passes. References: `Project::testRuns()`, `TestRun::cases()`, `TestRunCase::testCase()`. Run statuses are open/completed/aborted.
