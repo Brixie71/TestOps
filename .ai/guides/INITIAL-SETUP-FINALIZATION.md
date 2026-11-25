@@ -396,15 +396,23 @@ Do not add all these tests in one large unreviewed change. Follow the project's 
 
 Before the Dashboard feature:
 
-- [ ] Review `routes/web.php` and `bootstrap/app.php`.
-- [ ] Confirm the root route behavior is intentional.
-- [ ] Confirm `/dashboard` is not accidentally assumed to exist.
-- [ ] Decide whether the root route should redirect authenticated users to `/dashboard` and guests to `/login`.
-- [ ] Ensure private application routes use authentication middleware.
-- [ ] Keep route definitions resource-oriented and consistent with `.ai/rules/routes.md`.
-- [ ] Avoid adding dashboard-specific routes or controllers until the Dashboard feature is formally started.
+- [x] Review `routes/web.php` and `bootstrap/app.php`.
+- [x] Confirm the root route behavior is intentional.
+- [x] Confirm `/dashboard` is not accidentally assumed to exist.
+- [x] Decide whether the root route should redirect authenticated users to `/dashboard` and guests to `/login`.
+- [x] Ensure private application routes use authentication middleware.
+- [x] Keep route definitions resource-oriented and consistent with `.ai/rules/routes.md`.
+- [x] Avoid adding dashboard-specific routes or controllers until the Dashboard feature is formally started.
 
 The Dashboard should not become a dumping ground for unrelated business logic. Controllers should remain thin, with data retrieval and authorization responsibilities placed appropriately.
+
+### Readiness review — 2026-11-26
+
+- `routes/web.php` and `bootstrap/app.php` reviewed: `auth` guards every private group, `active.account` follows it on authenticated pages, and `POST /logout` deliberately requires only `auth` so a deactivated account can still end its session. The only route aliases are `super.admin`, `permission`, and `active.account`.
+- Root route decision: `/` keeps serving the public `welcome` view to everyone, with sign-in and dashboard links. It does not redirect by authentication state; changing that is not required for the dashboard and was deliberately not done.
+- `/dashboard` is a registered named route rather than an assumed path, and it now resolves through `DashboardController@index`.
+- The "no dashboard routes until started" rule is satisfied: the dashboard has been formally started under `.scratch/dashboard/spec.md`, and the placeholder view route was replaced rather than duplicated.
+- Nested project resources use `->scopeBindings()`. The `/api/v1` versioning rule does not apply yet because no API routes exist.
 
 ## 12. Documentation Readiness
 
@@ -428,6 +436,8 @@ It should explain:
 
 The README must describe the actual working setup. Do not document commands that have not been verified.
 
+Documentation status — 2026-11-26: the root `README.md` was rewritten against the shipped code. It now covers the stack (including Passport and Resend), prerequisites, install and `.env` steps, migrations and seeders, frontend install/build, the development server, tests, the module-level route map, and where AI instructions live. Super Admin bootstrap is documented as intentionally not auto-provisioning accounts; the README explicitly forbids manual password-hash inserts.
+
 The repository should also explain where AI-specific instructions live:
 
 - `.ai/rules/`
@@ -445,22 +455,24 @@ The Dashboard implementation may begin when all required items below have been c
 
 ### Required
 
-- [ ] AI preflight instructions and relevant project guides have been read.
-- [ ] Git working tree is understood and no accidental secret files are staged.
-- [ ] `.env` and real credentials are excluded from Git.
+- [x] AI preflight instructions and relevant project guides have been read.
+- [x] Git working tree is understood and no accidental secret files are staged.
+- [x] `.env` and real credentials are excluded from Git.
 - [ ] `.env.example` is safe and representative.
-- [ ] PHP, Composer, Laravel, Node, and npm versions are verified.
-- [ ] Frontend production build succeeds.
-- [ ] Migration status is understood.
-- [ ] Seeders are reviewed and Super Admin bootstrap behavior is understood.
-- [ ] Login view and authentication controller are consistent.
-- [ ] Login and logout routes are verified.
-- [ ] Authentication behavior is manually checked or covered by tests.
-- [ ] RBAC relationship tests pass.
-- [ ] Full existing test suite is run and failures are understood.
-- [ ] Pint has been run on changed PHP files.
-- [ ] README setup instructions are accurate.
+- [x] PHP, Composer, Laravel, Node, and npm versions are verified.
+- [x] Frontend production build succeeds.
+- [x] Migration status is understood.
+- [x] Seeders are reviewed and Super Admin bootstrap behavior is understood.
+- [x] Login view and authentication controller are consistent.
+- [x] Login and logout routes are verified.
+- [x] Authentication behavior is manually checked or covered by tests.
+- [x] RBAC relationship tests pass.
+- [x] Full existing test suite is run and failures are understood.
+- [x] Pint has been run on changed PHP files.
+- [x] README setup instructions are accurate.
 - [ ] GitHub repository is synchronized with the intended local state.
+
+Verified 2026-11-26: PHP 8.5.12, Composer 2.11.1, Node 26.13.0, npm 11.20.0; `npm run build` succeeded; all migrations show as ran; the full suite passed (896 tests / 2,983 assertions) and Pint was clean before the dashboard slice. The GitHub sync box stays open only until the dashboard commits are pushed. The `.env.example` box stays open because that file contains a non-empty `MAIL_USERNAME`/`MAIL_PASSWORD` pair (a 4-character password) that predates this change; confirm those are development-only local mail values before treating the file as safe.
 
 ### Deferred or not required to start the Dashboard
 

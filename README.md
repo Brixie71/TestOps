@@ -18,6 +18,7 @@ Only the functionality listed under [Current implementation](#current-implementa
 | ------------------------ | -------------------------------------------------------------- | ---------------------------------------------------------------- |
 | Application framework    | Laravel `^13.17`                                               | `composer.json` constraint                                       |
 | Language                 | PHP `^8.3`                                                     | Developed and run locally on PHP 8.5                             |
+| Service API authorization | Laravel Passport `^13.10`                                     | OAuth2 for the service API; web sessions are separate            |
 | Application database     | PostgreSQL (intended)                                          | Configured through the standard `DB_*` settings                  |
 | Automated test database  | SQLite, in-memory (`:memory:`)                                 | Configured in `phpunit.xml`; no external database needed to test |
 | Templating               | Blade                                                          | All views in `resources/views`                                   |
@@ -25,6 +26,7 @@ Only the functionality listed under [Current implementation](#current-implementa
 | Asset bundling           | Vite `^8.0.0`                                                  |                                                                  |
 | Testing                  | PHPUnit `^12.5.12`                                             |                                                                  |
 | Code style               | Laravel Pint `^1.27`                                           |                                                                  |
+| Production email         | Resend (`resend/resend-php`)                                   | Verified sender; credentials stay in `.env`                       |
 | Local email infrastructure | Haraka 3 + Mailpit, orchestrated with Podman Compose         | See [Email infrastructure](infrastructure/email/README.md)       |
 
 Sessions, cache, and queue connections are configured for database-driven storage by default (`SESSION_DRIVER=database`, `CACHE_STORE=database`, `QUEUE_CONNECTION=database`).
@@ -33,11 +35,13 @@ Sessions, cache, and queue connections are configured for database-driven storag
 
 The following has been implemented and verified in the codebase.
 
-### Authentication
+### Authentication and accounts
 
-- `GET /login` and `POST /login` for guest users, handled by `AuthenticatedSessionController`.
-- `POST /logout` for authenticated users.
+- `GET /login` and `POST /login` for guest users, handled by `AuthenticatedSessionController`; `POST /logout` for authenticated users.
+- Invitation-based account creation, invitation recovery, email verification, and forced password reset through single-use emailed links. Every guest POST is throttled per IP.
 - An authenticated application shell: landing page, navbar, sidebar, and theme toggle.
+- Self-service profile: name, contact number, job title, and department; password change; email-address change with verification and cancellation; notification preferences.
+- Account lifecycle: deactivation (soft delete), reactivation, permanent deletion with the acting administrator's password and a recorded reason, and bulk deactivation.
 
 ### Authorization foundation
 
@@ -55,41 +59,61 @@ Role and permission data models and supporting migrations:
 Authorization behavior:
 
 - `PermissionChecker` (system scope): users without a system-scope role are denied; users with the `SUPER_ADMIN` system role are always allowed; other system roles inherit permissions only through their role-permission assignments.
-- `ProjectPolicy`: Super Admin has unrestricted project access (policy `before` hook); project owners manage their own projects; members act through project-scoped roles or, for `SYSTEM_ADMIN`, through a system permission combined with an active project membership. Ownership does not bypass membership requirements for system admins.
+- `ProjectPolicy`: Super Admin has unrestricted project access (policy `before` hook); project owners manage their own projects; members act through project-scoped roles or, for `SYSTEM_ADMIN`, through a system permission combined with an active project membership. Ownership does not bypass membership requirements for system admins. Testing read abilities (`viewTestCases`, `viewTestRuns`, `viewDefects`) grant cross-project visibility to `SYSTEM_ADMIN` through their system-scope permissions; testing writes stay owner/member-only.
+- `ProjectVisibility`: the single query-side implementation of project scope, used by the projects directory and the dashboard. It mirrors `ProjectPolicy`, and parity is asserted by `tests/Feature/Services/Authorization/ProjectVisibilityTest.php`.
 - Registered middleware aliases in `bootstrap/app.php`:
   - `super.admin` — `EnsureUserIsSuperAdmin`: allows only authenticated users whose assigned role has code `SUPER_ADMIN` and scope `system` (verified by role code and scope, never by name or email).
   - `permission` — `EnsurePermission`: accepts a permission code argument, e.g. `permission:projects.view`, and returns HTTP 403 (or redirects guests) otherwise.
-- Seeders: `RoleSeeder` creates the `SUPER_ADMIN` system role; `SuperAdminSeeder` verifies existing Super Admin accounts but does **not** create users (see [Known limitations](#known-limitations)).
+- Seeders: `RoleSeeder` creates the `SUPER_ADMIN` and `SYSTEM_ADMIN` system roles; `ProjectRoleSeeder` creates `PROJECT_ADMIN` and its project-scoped permission set; `ProjectAuthorizationPermissionSeeder` grants `SYSTEM_ADMIN` the cross-project management and read-only testing permissions. `SuperAdminSeeder` verifies existing Super Admin accounts but does **not** create users (see [Known limitations](#known-limitations)).
+
+### Projects and membership
+
+- Projects directory with role-scoped visibility and search, and a project details page.
+- Membership add/remove and role changes, ownership assignment/transfer/unassignment, assignment type, and automatic owner assignment. Every mutation is transactional, re-authorizes inside the transaction, and is audited.
+- Project Activity email notifications for membership and ownership changes, delivered to the affected member and the project owner, deduplicated, never to the actor, and suppressed when the recipient has disabled the optional category.
+
+### Testing domain
+
+- Test suites and test cases with ordered steps and per-project keys (`TC-#`).
+- Test runs that freeze case title, steps, and severity at start time (`TR-#`), with start, complete, and abort.
+- One current result per frozen case (`passed`, `failed`, `blocked`, `skipped`, `not_run`), re-recordable while the run is open.
+- Project defects (`DEF-#`) optionally traced to a result, with severity and status transitions.
+- Project-scoped permissions for every read and write; `SYSTEM_ADMIN` is read-only; all case, run, result, and defect changes are audited.
+
+### Administration
+
+- User directory, invites and invitation management, system-role assignment, password management and forced reset, administrative profile editing, email-change cancellation, and bulk operations.
+- Role and permission administration, including safe deletion rules for custom roles.
+- System announcements to every active account.
+- Audit log with filtering and CSV/PDF export.
+- Email delivery history with manual retry for eligible failures.
 
 ### Application routes
 
-Verified with `php artisan route:list`:
+Routes are grouped by module and each mutation is authorized server-side by the controller, action, and policy. Use `php artisan route:list` for the full, current list.
 
-| Method    | Route                              | Name                  | Access                         | Status                    |
-| --------- | ---------------------------------- | --------------------- | ------------------------------ | ------------------------- |
-| GET/HEAD  | `/`                                | —                     | Public                         | Landing page              |
-| GET/HEAD  | `/login`                           | `login`               | Guest                          | Implemented               |
-| POST      | `/login`                           | `login.store`         | Guest                          | Implemented               |
-| POST      | `/logout`                          | `logout`              | Authenticated                  | Implemented               |
-| GET/HEAD  | `/dashboard`                       | `dashboard`           | Authenticated                  | Placeholder view          |
-| GET/HEAD  | `/profile`                         | `profile`             | Authenticated                  | Placeholder view          |
-| GET/HEAD  | `/settings`                        | `settings.index`      | Super Admin (`super.admin`)    | Placeholder view          |
-| GET/HEAD  | `/settings/users`                  | `settings.users`      | Super Admin (`super.admin`)    | Placeholder view          |
-| GET/HEAD  | `/settings/roles`                  | `settings.roles`      | Super Admin (`super.admin`)    | Placeholder view          |
-| GET/HEAD  | `/settings/permissions`            | `settings.permissions`| Super Admin (`super.admin`)    | Placeholder view          |
-| GET/HEAD  | `/settings/about`                  | `settings.about`      | Super Admin (`super.admin`)    | Placeholder view          |
+| Area | Routes |
+| --- | --- |
+| Landing and authentication | `/`, `/login`, `/logout`, invitation/verification/password-reset links |
+| Dashboard | `/dashboard` — read-only summary scoped to visible projects |
+| Profile | `/profile` plus password, email, and notification endpoints |
+| Projects | `/projects`, `/projects/{project}`, testing workspace, test runs, results, defects |
+| Settings | `/settings/*` per module, each behind `super.admin`, `active.account`, and the module's permission |
 
-The dashboard, profile, and settings pages are **navigation placeholders only** — static views with no management functionality yet. They are not completed management modules.
+`/settings` and `/settings/about` remain informational views. Every other listed area has working behavior behind it.
 
-### Email infrastructure
+### Email delivery
+
+Production delivery uses the Resend transport (`MAIL_MAILER=resend`) with the verified sender `TestOps <no-reply@testops.site>`. `RESEND_API_KEY` lives in `.env` only and is never committed.
 
 A local Haraka + Mailpit stack running under Podman Compose supports outbound email development and testing. See [`infrastructure/email/README.md`](infrastructure/email/README.md).
 
 ## Known limitations
 
 - **Initial Super Admin provisioning is not implemented.** Automatic Super Admin provisioning through environment variables has been removed. `RoleSeeder` seeds only the `SUPER_ADMIN` role — not a user — and `SuperAdminSeeder` explicitly refuses to auto-provision accounts. No supported provisioning command currently exists; creating the first Super Admin account requires a controlled administrative setup procedure that has not yet been documented or implemented. Do not create accounts by manually inserting password hashes into the database.
-- User Management CRUD, complete audit logging, notification management, email-address history, and related workflows are **planned but not implemented**.
-- Application and administration modules built on the authorization foundation are still in progress.
+- Testing retention is still open: deleting a project cascades its testing data, runs and defects have no delete path, and only frozen run-case rows preserve history. Test-case attachments are not implemented.
+- The dashboard is delivered incrementally: summary cards exist, while project, run, and defect lists plus navigation are still in progress.
+- Production deployment is not automated in this repository.
 
 ## Prerequisites
 
@@ -185,6 +209,18 @@ Verified commands, run from the repository root unless noted.
 
 TestOps ships local email testing infrastructure — Haraka for authenticated SMTP submission and Mailpit for message capture and inspection, orchestrated with Podman Compose. Setup, operations, and Laravel integration are documented in [`infrastructure/email/README.md`](infrastructure/email/README.md).
 
+## AI assistant instructions
+
+This repository keeps agent-facing instructions in version control:
+
+- `AGENTS.md` — repository-wide engineering rules and verification contract.
+- `CLAUDE.md` — Laravel Boost-generated framework guidelines.
+- `.ai/rules/` — path-scoped rules; `.ai/rules/index.md` maps globs to the matching file.
+- `.ai/guides/` — domain guides for database design, Eloquent relationships, user management, and setup.
+- `.opencode/` — slash commands and harness configuration.
+- `.agents/skills/` — project skills loaded on demand; `.claude/` mirrors the Claude Code integration.
+- `.scratch/` — local issue tracker and feature specs. It is working material, not application code.
+
 ## Security
 
 - **Never commit environment files or secrets.** `.env`, tokens, API credentials, and private keys must stay out of version control. This applies to the root repository (`.env` is Git-ignored) and to the email infrastructure, where the local `.env`, generated Haraka authentication configuration, and generated TLS key/certificate files are also Git-ignored.
@@ -194,14 +230,11 @@ TestOps ships local email testing infrastructure — Haraka for authenticated SM
 
 ## Roadmap
 
-Planned capabilities, in **no particular order** and **not implemented**:
+Planned capabilities, in **no particular order**:
 
-1. User Management module (Super Admin CRUD over users in Settings).
-2. Role and permission administration interfaces.
-3. Functional dashboard and profile pages.
-4. Project and membership management on top of the existing project data model.
-5. Audit logging, notification management, and email-address history.
-6. Test planning and execution tracking — the core purpose of the platform.
+1. Dashboard detail widgets (projects, runs in progress, open defects) and sidebar navigation.
+2. Test-case attachments, reporting, and exports.
+3. Production deployment and secrets management.
 
 The implementation order may change as development progresses.
 
