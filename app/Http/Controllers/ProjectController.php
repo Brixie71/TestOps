@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
-use App\Services\Authorization\PermissionChecker;
+use App\Services\Authorization\ProjectVisibility;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
@@ -24,66 +24,17 @@ use Illuminate\Support\Facades\Gate;
 class ProjectController extends Controller
 {
     public function __construct(
-        private readonly PermissionChecker $permissionChecker,
+        private readonly ProjectVisibility $visibility,
     ) {}
 
     public function index(Request $request): View
     {
         $search = $request->query('search');
 
-        $user = $request->user();
-
-        $isSystemAdmin = $user->role?->scope === 'system'
-            && $user->role?->code === 'SYSTEM_ADMIN';
-
-        $systemAdminCanViewProjects = $isSystemAdmin
-            && $this->permissionChecker->allows($user, 'projects.view');
-
-        $projects = Project::query()
+        $projects = $this->visibility->viewableProjects($request->user())
             // Soft-deleted owners stay resolvable: the directory must render
             // the amber "Deactivated" chip, never "No Admin Assigned".
             ->with(['owner' => fn ($q) => $q->withTrashed()])
-
-            ->when(! $this->viewsAllProjects($user), function (Builder $query) use (
-                $user,
-                $isSystemAdmin,
-                $systemAdminCanViewProjects,
-            ): void {
-                if ($isSystemAdmin) {
-                    // SYSTEM_ADMIN must have the system-level view permission.
-                    // Ownership alone does not bypass this requirement.
-                    if (! $systemAdminCanViewProjects) {
-                        $query->whereRaw('1 = 0');
-
-                        return;
-                    }
-
-                    // The policy requires membership for restricted SYSTEM_ADMIN
-                    // access, regardless of the project's ownership.
-                    $query->whereHas('members', fn (Builder $memberQuery) => $memberQuery
-                        ->whereKey($user->getKey()));
-
-                    return;
-                }
-
-                $viewRoleIds = Role::query()
-                    ->where('scope', 'project')
-                    ->whereHas('permissions', fn (Builder $permissionQuery) => $permissionQuery
-                        ->where('code', 'projects.view'))
-                    ->select('id');
-
-                // Ordinary users can view projects they own or projects where
-                // their project-scoped role grants projects.view.
-                $query->where(function (Builder $query) use ($user, $viewRoleIds): void {
-                    $query
-                        ->where('owner_id', $user->getKey())
-                        ->orWhereHas('members', function (Builder $memberQuery) use ($user, $viewRoleIds): void {
-                            $memberQuery
-                                ->whereKey($user->getKey())
-                                ->whereIn('project_user.role_id', $viewRoleIds);
-                        });
-                });
-            })
             ->when($search !== null && $search !== '', function (Builder $query) use ($search): void {
                 $term = '%'.mb_strtolower($search).'%';
 
@@ -171,31 +122,5 @@ class ProjectController extends Controller
             'eligibleOwners' => $eligibleOwners,
             'can' => $can,
         ]);
-    }
-
-    /**
-     * Cross-project directory visibility, mirroring ProjectPolicy::view():
-     * SUPER_ADMIN sees all projects, and a SYSTEM_ADMIN holding either
-     * existing system-scope management permission (projects.manage-members
-     * / projects.manage-ownership) views cross-project without membership.
-     * Everyone else — including a SYSTEM_ADMIN without those grants — is
-     * scoped by the ordinary owner-or-member rules. PermissionChecker
-     * requires a system-scope role for the grants, so a project-scoped
-     * role can never obtain directory-wide visibility through this.
-     */
-    private function viewsAllProjects(User $user): bool
-    {
-        if ($this->permissionChecker->isSuperAdmin($user)) {
-            return true;
-        }
-
-        $role = $user->role;
-
-        if ($role === null || $role->scope !== 'system' || $role->code !== 'SYSTEM_ADMIN') {
-            return false;
-        }
-
-        return $this->permissionChecker->allows($user, 'projects.manage-members')
-            || $this->permissionChecker->allows($user, 'projects.manage-ownership');
     }
 }
