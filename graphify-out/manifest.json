@@ -132,9 +132,9 @@
     "semantic_hash": "25a307335c0719bc9a91b3f7babd186d"
   },
   "app/Http/Controllers/ProjectController.php": {
-    "mtime": 1795499167.3807206,
-    "seen": 1795615516.2130182,
-    "ast_hash": "f692a6fd398d08915eba02be55dc5607",
+    "mtime": 1795622351.0585392,
+    "seen": 1795622482.5880702,
+    "ast_hash": "05b8e719cc8679d9c79c07d492b9eb91",
     "semantic_hash": ""
   },
   "app/Http/Controllers/Projects/ProjectMembershipController.php": {
@@ -811,9 +811,9 @@
     "semantic_hash": "aacd38ace1bfae1d7ac72a23156c799e"
   },
   "database/seeders/ProjectAuthorizationPermissionSeeder.php": {
-    "mtime": 1795621045.849275,
-    "seen": 1795621418.6965818,
-    "ast_hash": "4bd8ba899c59344d822e823d02b75a8b",
+    "mtime": 1795621456.1820114,
+    "seen": 1795622482.5880702,
+    "ast_hash": "972fb6fae433af0ddeb2a3fcd05bca47",
     "semantic_hash": ""
   },
   "database/seeders/ProjectRoleSeeder.php": {
@@ -1027,10 +1027,10 @@
     "semantic_hash": ""
   },
   "resources/views/dashboard/index.blade.php": {
-    "mtime": 1793679392.0519001,
-    "seen": 1794506694.5085588,
-    "ast_hash": "305f7cd48ff3fb9f6378e1040c673e87",
-    "semantic_hash": "305f7cd48ff3fb9f6378e1040c673e87"
+    "mtime": 1795622856.9497707,
+    "seen": 1795623284.0065958,
+    "ast_hash": "cbc50220461eefe80bca67a49c756a05",
+    "semantic_hash": ""
   },
   "resources/views/email-verification/confirm.blade.php": {
     "mtime": 1794278430.6165109,
@@ -1177,9 +1177,9 @@
     "semantic_hash": "3c6ce2e6d16444282b24a9aa63885563"
   },
   "routes/web.php": {
-    "mtime": 1795621045.849275,
-    "seen": 1795621418.6965818,
-    "ast_hash": "7f30a23687254da0d753b0618d50454b",
+    "mtime": 1795622848.5016685,
+    "seen": 1795623284.0065958,
+    "ast_hash": "fab8b0afa3da32ce4cf29206c894f85c",
     "semantic_hash": ""
   },
   "tests/Feature/Actions/AddProjectMemberActionTest.php": {
@@ -1855,9 +1855,9 @@
     "semantic_hash": ""
   },
   ".ai/guides/INITIAL-SETUP-FINALIZATION.md": {
-    "mtime": 1795621365.44865,
-    "seen": 1795621418.6965818,
-    "ast_hash": "1339f788d571ff76a037daf105a5eec3",
+    "mtime": 1795623219.528547,
+    "seen": 1795623284.0065958,
+    "ast_hash": "a980fdf9b4de63e2baec9f1bc65537a8",
     "semantic_hash": ""
   },
   ".ai/guides/USER-MANAGEMENT-MODULE.md": {
@@ -1867,9 +1867,9 @@
     "semantic_hash": ""
   },
   ".ai/rules/app.md": {
-    "mtime": 1795621349.2352934,
-    "seen": 1795621418.6965818,
-    "ast_hash": "66af5b79cc84443efabdd28b4c956be0",
+    "mtime": 1795623225.2186117,
+    "seen": 1795623284.0065958,
+    "ast_hash": "39a7ae79e5fea1509691039267328e64",
     "semantic_hash": ""
   },
   ".ai/rules/composer-json.md": {
@@ -2341,9 +2341,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1793774658.6661403,
-    "seen": 1794795146.8966777,
-    "ast_hash": "22ba26752385c4b1bc3f4093171343e3",
+    "mtime": 1795623137.8863251,
+    "seen": 1795623284.0065958,
+    "ast_hash": "efeb4125c28210dd556c04d9710e0950",
     "semantic_hash": ""
   },
   "docs/oauth-service-authorization.md": {
@@ -3202,6 +3202,36 @@
     "mtime": 1795621240.0411518,
     "seen": 1795621418.6965818,
     "ast_hash": "6b4c4892a6b996876378e04b6596f786",
+    "semantic_hash": ""
+  },
+  "app/Services/Authorization/ProjectVisibility.php": {
+    "mtime": 1795622212.7611754,
+    "seen": 1795622482.5880702,
+    "ast_hash": "cfdd9559a8b8951840b7f865bbbd70c5",
+    "semantic_hash": ""
+  },
+  "tests/Feature/Services/Authorization/ProjectVisibilityTest.php": {
+    "mtime": 1795622314.176247,
+    "seen": 1795622482.5880702,
+    "ast_hash": "3dbe4bed1e7112e7d7dbe4b9be3f5f58",
+    "semantic_hash": ""
+  },
+  ".scratch/dashboard/spec.md": {
+    "mtime": 1795621994.752772,
+    "seen": 1795622482.5880702,
+    "ast_hash": "c06bc5f976b120ac7aac6671976a02c8",
+    "semantic_hash": ""
+  },
+  "app/Http/Controllers/DashboardController.php": {
+    "mtime": 1795622833.5668218,
+    "seen": 1795623284.00556,
+    "ast_hash": "4a0c170a510780cce4608950c436f994",
+    "semantic_hash": ""
+  },
+  "tests/Feature/Dashboard/DashboardHttpTest.php": {
+    "mtime": 1795622972.832726,
+    "seen": 1795623284.0065958,
+    "ast_hash": "ef2e7c0e506d0979c9759840635a771a",
     "semantic_hash": ""
   },
   "package-lock.json": {
