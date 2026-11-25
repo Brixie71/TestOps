@@ -15,7 +15,7 @@ class AuthenticatedShellTest extends TestCase
         $this->get('/dashboard')->assertRedirect('/login');
     }
 
-    public function test_authenticated_users_can_load_the_dashboard_placeholder(): void
+    public function test_authenticated_users_can_load_the_dashboard(): void
     {
         $user = User::factory()->create();
 
@@ -23,6 +23,17 @@ class AuthenticatedShellTest extends TestCase
             ->get('/dashboard')
             ->assertOk()
             ->assertSee('Dashboard');
+    }
+
+    public function test_the_sidebar_links_to_dashboard_and_projects(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get('/projects')
+            ->assertOk()
+            ->assertSee('href="'.route('dashboard').'"', false)
+            ->assertSee('href="'.route('projects.index').'"', false);
     }
 
     public function test_logout_destroys_the_session_and_redirects_to_login(): void

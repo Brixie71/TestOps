@@ -14,6 +14,7 @@ use Database\Seeders\ProjectAuthorizationPermissionSeeder;
 use Database\Seeders\ProjectRoleSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 class DashboardHttpTest extends TestCase
@@ -131,11 +132,155 @@ class DashboardHttpTest extends TestCase
     {
         Project::factory()->count(2)->create();
 
-        $values = $this->metricsFor(User::factory()->create());
+        $response = $this->dashboardFor(User::factory()->create());
+
+        $values = collect($response->viewData('metrics'))->pluck('value', 'label')->all();
 
         $this->assertSame(0, $values['Projects']);
         $this->assertArrayNotHasKey('Open runs', $values);
         $this->assertArrayNotHasKey('Open defects', $values);
+
+        $this->assertCount(0, $response->viewData('projects'));
+        $this->assertCount(0, $response->viewData('openRuns'));
+        $this->assertCount(0, $response->viewData('openDefects'));
+        $response->assertSee('No projects yet')
+            ->assertDontSee('Runs in progress')
+            ->assertDontSee('Open defects');
+    }
+
+    public function test_project_list_orders_by_unresolved_defects_then_name_and_is_capped_at_eight(): void
+    {
+        $owner = User::factory()->create();
+
+        $busy = Project::factory()->create(['owner_id' => $owner->id, 'name' => 'Busy']);
+        $tied = Project::factory()->create(['owner_id' => $owner->id, 'name' => 'Tied']);
+        Project::factory()->create(['owner_id' => $owner->id, 'name' => 'Quiet']);
+        Project::factory()->count(7)->create(['owner_id' => $owner->id]);
+
+        $this->createDefect($busy, 1);
+        $this->createDefect($busy, 2);
+        $this->createDefect($tied, 1);
+        $this->createDefect($tied, 2);
+
+        $projects = $this->dashboardFor($owner)->viewData('projects');
+
+        $this->assertCount(8, $projects);
+        $this->assertSame(['Busy', 'Tied'], $projects->take(2)->pluck('name')->all());
+    }
+
+    public function test_runs_list_is_scoped_to_visible_projects_orders_by_recency_and_is_capped_at_five(): void
+    {
+        $owner = User::factory()->create();
+        $project = Project::factory()->create(['owner_id' => $owner->id]);
+        $hidden = Project::factory()->create();
+
+        $runs = collect(range(1, 6))->map(fn (int $minutes) => TestRun::factory()->create([
+            'project_id' => $project->id,
+            'created_by' => $owner->id,
+            'started_at' => now()->subMinutes($minutes),
+        ]));
+
+        TestRun::factory()->create([
+            'project_id' => $hidden->id,
+            'created_by' => $hidden->owner_id,
+            'started_at' => now(),
+        ]);
+
+        $newest = $runs->first();
+        $runCases = TestRunCase::factory()->count(3)->create(['test_run_id' => $newest->id]);
+        TestResult::factory()->create([
+            'test_run_case_id' => $runCases->first()->id,
+            'recorded_by' => $owner->id,
+            'recorded_at' => now(),
+        ]);
+
+        $listed = $this->dashboardFor($owner)->viewData('openRuns');
+
+        $this->assertCount(5, $listed);
+        $this->assertSame($runs->take(5)->pluck('id')->all(), $listed->pluck('id')->all());
+        $this->assertSame(1, $listed->first()->recorded_count);
+        $this->assertSame(3, $listed->first()->cases_count);
+    }
+
+    public function test_defects_list_is_scoped_orders_by_severity_then_recency_and_is_capped_at_five(): void
+    {
+        $owner = User::factory()->create();
+        $project = Project::factory()->create(['owner_id' => $owner->id]);
+        $hidden = Project::factory()->create();
+
+        $blocker = $this->createDefect($project, 1, Defect::STATUS_OPEN, Defect::SEVERITY_BLOCKER, now()->subHours(3));
+        $critical = $this->createDefect($project, 2, Defect::STATUS_IN_PROGRESS, Defect::SEVERITY_CRITICAL, now()->subHour());
+        $majorNewest = $this->createDefect($project, 3, Defect::STATUS_OPEN, Defect::SEVERITY_MAJOR, now());
+        $majorOld = $this->createDefect($project, 4, Defect::STATUS_OPEN, Defect::SEVERITY_MAJOR, now()->subHours(2));
+        $minor = $this->createDefect($project, 5, Defect::STATUS_OPEN, Defect::SEVERITY_MINOR, now());
+        $this->createDefect($project, 6, Defect::STATUS_OPEN, Defect::SEVERITY_TRIVIAL, now());
+        $this->createDefect($project, 7, Defect::STATUS_RESOLVED, Defect::SEVERITY_BLOCKER, now());
+        $this->createDefect($hidden, 1, Defect::STATUS_OPEN, Defect::SEVERITY_BLOCKER, now());
+
+        $listed = $this->dashboardFor($owner)->viewData('openDefects');
+
+        $this->assertCount(5, $listed);
+        $this->assertSame(
+            [$blocker->id, $critical->id, $majorNewest->id, $majorOld->id, $minor->id],
+            $listed->pluck('id')->all(),
+        );
+        $this->assertSame($project->name, $listed->first()->project_name);
+    }
+
+    public function test_project_viewer_sees_their_project_but_no_testing_lists_or_columns(): void
+    {
+        $project = Project::factory()->create();
+        $viewer = User::factory()->create();
+        $this->joinProject($project, $viewer, $this->createProjectRole('PROJECT_VIEWER', ['projects.view']));
+
+        TestRun::factory()->create([
+            'project_id' => $project->id,
+            'created_by' => $project->owner_id,
+        ]);
+        $this->createDefect($project, 1);
+
+        $response = $this->dashboardFor($viewer);
+
+        $this->assertSame([$project->id], $response->viewData('projects')->pluck('id')->all());
+        $this->assertSame([], $response->viewData('runScopedProjectIds'));
+        $this->assertSame([], $response->viewData('defectScopedProjectIds'));
+        $this->assertFalse($response->viewData('showRuns'));
+        $this->assertFalse($response->viewData('showDefects'));
+        $response->assertSee($project->name)
+            ->assertDontSee('Runs in progress')
+            ->assertDontSee('Open defects');
+    }
+
+    public function test_project_row_shows_run_counts_only_when_the_run_ability_is_held(): void
+    {
+        $project = Project::factory()->create();
+        $member = User::factory()->create();
+        $this->joinProject($project, $member, $this->createProjectRole('PROJECT_RUN_VIEWER', ['projects.view', 'test_runs.view']));
+
+        TestRun::factory()->create([
+            'project_id' => $project->id,
+            'created_by' => $project->owner_id,
+        ]);
+        $this->createDefect($project, 1);
+
+        $response = $this->dashboardFor($member);
+
+        $this->assertSame([$project->id], $response->viewData('runScopedProjectIds'));
+        $this->assertSame([], $response->viewData('defectScopedProjectIds'));
+        $this->assertSame(1, $response->viewData('projects')->first()->open_runs_count);
+        $this->assertFalse($response->viewData('showDefects'));
+    }
+
+    public function test_owner_with_no_activity_sees_the_testing_list_empty_states(): void
+    {
+        $project = Project::factory()->create();
+
+        $response = $this->dashboardFor($project->owner);
+
+        $this->assertCount(0, $response->viewData('openRuns'));
+        $this->assertCount(0, $response->viewData('openDefects'));
+        $response->assertSee('No runs in progress.')
+            ->assertSee('No open defects.');
     }
 
     public function test_system_admin_sees_every_project(): void
@@ -157,12 +302,15 @@ class DashboardHttpTest extends TestCase
      */
     private function metricsFor(User $user): array
     {
-        $response = $this->actingAs($user)->get(route('dashboard'))->assertOk();
-
         /** @var array<string, int> $values */
-        $values = collect($response->viewData('metrics'))->pluck('value', 'label')->all();
+        $values = collect($this->dashboardFor($user)->viewData('metrics'))->pluck('value', 'label')->all();
 
         return $values;
+    }
+
+    private function dashboardFor(User $user): TestResponse
+    {
+        return $this->actingAs($user)->get(route('dashboard'))->assertOk();
     }
 
     private function createResult(TestRun $run, \DateTimeInterface $recordedAt): TestResult
@@ -181,12 +329,19 @@ class DashboardHttpTest extends TestCase
         $project->members()->attach($member->id, ['role_id' => $role->id]);
     }
 
-    private function createDefect(Project $project, int $sequence, string $status = Defect::STATUS_OPEN): Defect
-    {
+    private function createDefect(
+        Project $project,
+        int $sequence,
+        string $status = Defect::STATUS_OPEN,
+        string $severity = Defect::SEVERITY_MAJOR,
+        ?\DateTimeInterface $createdAt = null,
+    ): Defect {
         return Defect::factory()->create([
             'project_id' => $project->id,
             'sequence' => $sequence,
             'status' => $status,
+            'severity' => $severity,
+            'created_at' => $createdAt ?? now(),
         ]);
     }
 

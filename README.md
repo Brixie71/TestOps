@@ -112,7 +112,7 @@ A local Haraka + Mailpit stack running under Podman Compose supports outbound em
 
 - **Initial Super Admin provisioning is not implemented.** Automatic Super Admin provisioning through environment variables has been removed. `RoleSeeder` seeds only the `SUPER_ADMIN` role — not a user — and `SuperAdminSeeder` explicitly refuses to auto-provision accounts. No supported provisioning command currently exists; creating the first Super Admin account requires a controlled administrative setup procedure that has not yet been documented or implemented. Do not create accounts by manually inserting password hashes into the database.
 - Testing retention is still open: deleting a project cascades its testing data, runs and defects have no delete path, and only frozen run-case rows preserve history. Test-case attachments are not implemented.
-- The dashboard is delivered incrementally: summary cards exist, while project, run, and defect lists plus navigation are still in progress.
+- The dashboard is implemented as a read-only personal summary: scoped KPI cards plus lists for visible projects, runs in progress, and open defects. Charts, an activity feed, and exports remain out of scope.
 - Production deployment is not automated in this repository.
 
 ## Prerequisites
@@ -232,9 +232,8 @@ This repository keeps agent-facing instructions in version control:
 
 Planned capabilities, in **no particular order**:
 
-1. Dashboard detail widgets (projects, runs in progress, open defects) and sidebar navigation.
-2. Test-case attachments, reporting, and exports.
-3. Production deployment and secrets management.
+1. Test-case attachments, reporting, and exports.
+2. Production deployment and secrets management.
 
 The implementation order may change as development progresses.
 
