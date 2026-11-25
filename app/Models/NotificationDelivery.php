@@ -31,6 +31,7 @@ use LogicException;
     'failure_code',
     'failure_message',
     'user_message',
+    'context',
     'delivered_at',
 ])]
 class NotificationDelivery extends Model
@@ -130,6 +131,7 @@ class NotificationDelivery extends Model
     protected function casts(): array
     {
         return [
+            'context' => 'array',
             'delivered_at' => 'datetime',
             'created_at' => 'datetime',
         ];

@@ -5,6 +5,7 @@ namespace App\Actions;
 use App\Models\Project;
 use App\Models\User;
 use App\Services\Audit\AuditLogger;
+use App\Services\Notifications\ProjectActivityNotificationService;
 use App\Services\Projects\ProjectMembershipRules;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
@@ -29,6 +30,7 @@ class RemoveProjectMemberAction
     public function __construct(
         private readonly ProjectMembershipRules $rules,
         private readonly AuditLogger $auditLogger,
+        private readonly ProjectActivityNotificationService $notifications,
     ) {}
 
     /**
@@ -42,7 +44,11 @@ class RemoveProjectMemberAction
     ): Project {
         $reason = $this->rules->requireReason($reason);
 
-        DB::transaction(function () use ($actor, $project, $user, $reason, &$result): void {
+        $notifyingActor = $actor;
+        $notifiedMember = null;
+        $notifiedRole = null;
+
+        DB::transaction(function () use ($actor, $project, $user, $reason, &$result, &$notifyingActor, &$notifiedMember, &$notifiedRole): void {
             // Project-row lock serializes per-project membership and ownership.
             $project = $this->rules->lockReloadProject($project);
 
@@ -128,8 +134,14 @@ class RemoveProjectMemberAction
                 $reason,
             );
 
+            $notifyingActor = $actor;
+            $notifiedMember = $member;
+            $notifiedRole = $currentRole;
+
             $result = $project;
         });
+
+        $this->notifications->memberRemoved($result, $notifyingActor, $notifiedMember, $notifiedRole);
 
         return $result;
     }

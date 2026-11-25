@@ -10,6 +10,7 @@ use App\Models\NotificationDeliveryRetry;
 use App\Services\Notifications\InvitationDeliveryService;
 use App\Services\Notifications\NotificationDeliveryRetryService;
 use App\Services\Notifications\NotificationRetryException;
+use App\Services\Notifications\ProjectActivityRetryService;
 use App\Services\Notifications\SecurityNotificationRetryService;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
@@ -34,12 +35,14 @@ class NotificationDeliveryHistoryController extends Controller
         InvitationDeliveryService::NOTIFICATION_TYPE_INVITATION_LINK,
         InvitationDeliveryService::NOTIFICATION_TYPE_DIRECT_ACCOUNT_SETUP,
         ...SecurityNotificationRetryService::RETRYABLE_TYPES,
+        ...ProjectActivityRetryService::RETRYABLE_TYPES,
     ];
 
     public function __construct(
         private readonly NotificationDeliveryRetryService $retryService,
         private readonly ResendUserInvitationAction $resendUserInvitationAction,
         private readonly SecurityNotificationRetryService $securityRetryService,
+        private readonly ProjectActivityRetryService $projectActivityRetryService,
     ) {}
 
     /**
@@ -80,7 +83,7 @@ class NotificationDeliveryHistoryController extends Controller
                 $deliveries->getCollection()
                     ->filter(fn (NotificationDelivery $delivery): bool => in_array(
                         $delivery->notification_type,
-                        SecurityNotificationRetryService::RETRYABLE_TYPES,
+                        [...SecurityNotificationRetryService::RETRYABLE_TYPES, ...ProjectActivityRetryService::RETRYABLE_TYPES],
                         true,
                     ))
                     ->pluck('id')
@@ -162,6 +165,10 @@ class NotificationDeliveryHistoryController extends Controller
             return $linked
                 ? $this->resendUserInvitationAction->retryClosure($request->user())
                 : null;
+        }
+
+        if (in_array($delivery->notification_type, ProjectActivityRetryService::RETRYABLE_TYPES, true)) {
+            return $this->projectActivityRetryService->retryClosure($delivery);
         }
 
         if (! in_array($delivery->notification_type, self::RETRYABLE_TYPES, true)) {

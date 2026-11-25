@@ -5,6 +5,7 @@ namespace App\Actions;
 use App\Models\Project;
 use App\Models\User;
 use App\Services\Audit\AuditLogger;
+use App\Services\Notifications\ProjectActivityNotificationService;
 use App\Services\Projects\ProjectMembershipRules;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
@@ -31,6 +32,7 @@ class AssignProjectOwnerAction
     public function __construct(
         private readonly ProjectMembershipRules $rules,
         private readonly AuditLogger $auditLogger,
+        private readonly ProjectActivityNotificationService $notifications,
     ) {}
 
     /**
@@ -46,7 +48,10 @@ class AssignProjectOwnerAction
         $reason = $this->rules->requireReason($reason);
         $this->rules->assertAssignmentType($assignmentType);
 
-        DB::transaction(function () use ($actor, $project, $user, $assignmentType, $reason, &$result): void {
+        $notifyingActor = $actor;
+        $notifiedOwner = null;
+
+        DB::transaction(function () use ($actor, $project, $user, $assignmentType, $reason, &$result, &$notifyingActor, &$notifiedOwner): void {
             // Project-row lock serializes per-project membership and ownership.
             $project = $this->rules->lockReloadProject($project);
 
@@ -96,8 +101,13 @@ class AssignProjectOwnerAction
                 $reason,
             );
 
+            $notifyingActor = $actor;
+            $notifiedOwner = $newOwner;
+
             $result = $project;
         });
+
+        $this->notifications->ownerAssigned($result, $notifyingActor, $notifiedOwner);
 
         return $result;
     }

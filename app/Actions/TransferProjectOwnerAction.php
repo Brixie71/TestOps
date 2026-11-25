@@ -5,6 +5,7 @@ namespace App\Actions;
 use App\Models\Project;
 use App\Models\User;
 use App\Services\Audit\AuditLogger;
+use App\Services\Notifications\ProjectActivityNotificationService;
 use App\Services\Projects\ProjectMembershipRules;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
@@ -33,6 +34,7 @@ class TransferProjectOwnerAction
     public function __construct(
         private readonly ProjectMembershipRules $rules,
         private readonly AuditLogger $auditLogger,
+        private readonly ProjectActivityNotificationService $notifications,
     ) {}
 
     /**
@@ -48,7 +50,11 @@ class TransferProjectOwnerAction
         $reason = $this->rules->requireReason($reason);
         $this->rules->assertAssignmentType($assignmentType);
 
-        DB::transaction(function () use ($actor, $project, $user, $assignmentType, $reason, &$result): void {
+        $notifyingActor = $actor;
+        $notifiedOwner = null;
+        $notifiedPreviousOwner = null;
+
+        DB::transaction(function () use ($actor, $project, $user, $assignmentType, $reason, &$result, &$notifyingActor, &$notifiedOwner, &$notifiedPreviousOwner): void {
             // Project-row lock serializes per-project membership and ownership.
             $project = $this->rules->lockReloadProject($project);
 
@@ -87,6 +93,8 @@ class TransferProjectOwnerAction
             $previousOwnerId = $project->owner_id;
             $previousAssignmentType = $project->owner_assignment_type;
 
+            $previousOwner = User::query()->withTrashed()->find($previousOwnerId);
+
             $project->forceFill([
                 'owner_id' => $newOwner->getKey(),
                 'owner_assignment_type' => $assignmentType,
@@ -110,8 +118,14 @@ class TransferProjectOwnerAction
                 $reason,
             );
 
+            $notifyingActor = $actor;
+            $notifiedOwner = $newOwner;
+            $notifiedPreviousOwner = $previousOwner;
+
             $result = $project;
         });
+
+        $this->notifications->ownerTransferred($result, $notifyingActor, $notifiedOwner, $notifiedPreviousOwner);
 
         return $result;
     }

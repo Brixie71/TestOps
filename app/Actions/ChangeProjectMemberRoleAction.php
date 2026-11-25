@@ -6,6 +6,7 @@ use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\Audit\AuditLogger;
+use App\Services\Notifications\ProjectActivityNotificationService;
 use App\Services\Projects\ProjectMembershipRules;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
@@ -32,6 +33,7 @@ class ChangeProjectMemberRoleAction
     public function __construct(
         private readonly ProjectMembershipRules $rules,
         private readonly AuditLogger $auditLogger,
+        private readonly ProjectActivityNotificationService $notifications,
     ) {}
 
     /**
@@ -46,7 +48,12 @@ class ChangeProjectMemberRoleAction
     ): Project {
         $reason = $this->rules->requireReason($reason);
 
-        DB::transaction(function () use ($actor, $project, $user, $newRoleId, $reason, &$result): void {
+        $notifyingActor = $actor;
+        $notifiedMember = null;
+        $notifiedPreviousRole = null;
+        $notifiedNewRole = null;
+
+        DB::transaction(function () use ($actor, $project, $user, $newRoleId, $reason, &$result, &$notifyingActor, &$notifiedMember, &$notifiedPreviousRole, &$notifiedNewRole): void {
             // Project-row lock serializes per-project membership and ownership.
             $project = $this->rules->lockReloadProject($project);
 
@@ -129,8 +136,21 @@ class ChangeProjectMemberRoleAction
                 $this->rules->maybeAssignOwnershipAutomatically($actor, $project, $member, $reason);
             }
 
+            $notifyingActor = $actor;
+            $notifiedMember = $member;
+            $notifiedPreviousRole = $currentRole;
+            $notifiedNewRole = $newRole;
+
             $result = $project;
         });
+
+        $this->notifications->memberRoleChanged(
+            $result,
+            $notifyingActor,
+            $notifiedMember,
+            $notifiedPreviousRole,
+            $notifiedNewRole,
+        );
 
         return $result;
     }

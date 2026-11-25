@@ -30,11 +30,13 @@ class NotificationDeliveryRecorder
         ?User $user,
         string $recipientEmail,
         string $notificationType,
+        ?array $context = null,
     ): ?NotificationDelivery {
         return $this->persist(fn (): NotificationDelivery => NotificationDelivery::query()->create([
             'user_id' => $user?->getKey(),
             'recipient_email' => $recipientEmail,
             'notification_type' => $notificationType,
+            'context' => $context,
             'status' => NotificationDelivery::STATUS_DELIVERED,
             'delivered_at' => now(),
         ]));
@@ -48,6 +50,7 @@ class NotificationDeliveryRecorder
         string $recipientEmail,
         string $notificationType,
         Throwable $exception,
+        ?array $context = null,
     ): ?NotificationDelivery {
         $diagnostics = $this->diagnose($exception);
 
@@ -55,6 +58,7 @@ class NotificationDeliveryRecorder
             'user_id' => $user?->getKey(),
             'recipient_email' => $recipientEmail,
             'notification_type' => $notificationType,
+            'context' => $context,
             'status' => NotificationDelivery::STATUS_FAILED,
             'failure_code' => $diagnostics['failure_code'],
             'failure_message' => $diagnostics['failure_message'],
@@ -73,11 +77,13 @@ class NotificationDeliveryRecorder
         string $recipientEmail,
         string $notificationType,
         string $reason = NotificationDelivery::SUPPRESSION_REASON_PREFERENCE_DISABLED,
+        ?array $context = null,
     ): ?NotificationDelivery {
         return $this->persist(fn (): NotificationDelivery => NotificationDelivery::query()->create([
             'user_id' => $user?->getKey(),
             'recipient_email' => $recipientEmail,
             'notification_type' => $notificationType,
+            'context' => $context,
             'status' => NotificationDelivery::STATUS_SUPPRESSED,
             'suppression_reason' => $reason,
             'delivered_at' => null,
