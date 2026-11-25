@@ -458,7 +458,7 @@ The Dashboard implementation may begin when all required items below have been c
 - [x] AI preflight instructions and relevant project guides have been read.
 - [x] Git working tree is understood and no accidental secret files are staged.
 - [x] `.env` and real credentials are excluded from Git.
-- [ ] `.env.example` is safe and representative.
+- [x] `.env.example` is safe and representative.
 - [x] PHP, Composer, Laravel, Node, and npm versions are verified.
 - [x] Frontend production build succeeds.
 - [x] Migration status is understood.
@@ -472,7 +472,7 @@ The Dashboard implementation may begin when all required items below have been c
 - [x] README setup instructions are accurate.
 - [x] GitHub repository is synchronized with the intended local state.
 
-Verified 2026-11-26: PHP 8.5.12, Composer 2.11.1, Node 26.13.0, npm 11.20.0; `npm run build` succeeded; all migrations show as ran; the full suite passed (896 tests / 2,983 assertions) and Pint was clean before the dashboard slice. The dashboard commits were pushed to `origin/main` on 2026-11-26. The `.env.example` box stays open because that file contains a non-empty `MAIL_USERNAME`/`MAIL_PASSWORD` pair (a 4-character password) that predates this change; confirm those are development-only local mail values before treating the file as safe.
+Verified 2026-11-26: PHP 8.5.12, Composer 2.11.1, Node 26.13.0, npm 11.20.0; `npm run build` succeeded; all migrations show as ran; the full suite passed (910 tests / 3,053 assertions) and Pint was clean after the dashboard lists slice. The dashboard commits were pushed to `origin/main` on 2026-11-26. `.env.example` is safe and representative: `MAIL_MAILER=log` with literal `MAIL_USERNAME=null` and `MAIL_PASSWORD=null` placeholders and no real credentials.
 
 ### Deferred or not required to start the Dashboard
 
