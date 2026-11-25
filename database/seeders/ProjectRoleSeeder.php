@@ -57,6 +57,14 @@ class ProjectRoleSeeder extends Seeder
             'name' => 'Assign Project Roles',
             'description' => 'Allows assigning and changing project-scoped roles, including PROJECT_ADMIN, within the authorized project scope.',
         ],
+        'test_cases.view' => [
+            'name' => 'View Test Cases',
+            'description' => 'Allows viewing test suites and test cases within the authorized scope.',
+        ],
+        'test_cases.manage' => [
+            'name' => 'Manage Test Cases',
+            'description' => 'Allows creating, updating, and deleting test suites and test cases within the authorized project scope.',
+        ],
     ];
 
     /**

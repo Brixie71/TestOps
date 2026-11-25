@@ -21,6 +21,12 @@ class ProjectAuthorizationPermissionSeeder extends Seeder
             'name' => 'Manage Project Ownership',
             'description' => 'Allows assigning, transferring, unassigning, and changing the assignment type of project ownership across projects, subject to the approved System Admin restrictions.',
         ],
+        // Read-only testing visibility: SYSTEM_ADMIN may browse suites and
+        // cases across projects but never author or edit them (approved B7).
+        'test_cases.view' => [
+            'name' => 'View Test Cases',
+            'description' => 'Allows viewing test suites and test cases within the authorized scope.',
+        ],
     ];
 
     /**

@@ -160,6 +160,7 @@ class ProjectController extends Controller
             'unassign_owner' => Gate::allows('manageOwnership', $project) && $project->owner_id !== null,
             'change_assignment_type' => Gate::allows('manageOwnership', $project) && $ownerActive,
             'toggle_auto_assignment' => Gate::allows('manageOwnership', $project),
+            'view_testing' => Gate::allows('viewTestCases', $project),
         ];
 
         return view('projects.show', [

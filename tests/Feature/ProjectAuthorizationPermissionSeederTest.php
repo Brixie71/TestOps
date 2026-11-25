@@ -16,7 +16,7 @@ class ProjectAuthorizationPermissionSeederTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_it_grants_both_system_permissions_to_system_admin(): void
+    public function test_it_grants_the_system_permissions_to_system_admin(): void
     {
         $this->seedCanonicalRolesForAdministration();
 
@@ -24,7 +24,7 @@ class ProjectAuthorizationPermissionSeederTest extends TestCase
 
         (new ProjectAuthorizationPermissionSeeder)->run();
 
-        $this->assertDatabaseCount('permissions', 7);
+        $this->assertDatabaseCount('permissions', 9);
 
         $this->assertDatabaseHas('permissions', [
             'code' => 'projects.manage-ownership',
@@ -41,7 +41,7 @@ class ProjectAuthorizationPermissionSeederTest extends TestCase
         $attachedCodes = $systemAdmin->permissions()->orderBy('code')->pluck('code')->all();
 
         $this->assertSame([], array_values(array_diff(
-            ['projects.manage-members', 'projects.manage-ownership'],
+            ['projects.manage-members', 'projects.manage-ownership', 'test_cases.view'],
             $attachedCodes,
         )));
     }
@@ -73,7 +73,7 @@ class ProjectAuthorizationPermissionSeederTest extends TestCase
 
         $seeder->run();
 
-        $this->assertDatabaseCount('permissions', 7);
+        $this->assertDatabaseCount('permissions', 9);
         $this->assertSame($originalPermissionIds, $this->systemAdminRole()
             ->permissions()
             ->orderBy('code')

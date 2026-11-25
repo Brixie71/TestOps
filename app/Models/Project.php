@@ -55,6 +55,14 @@ class Project extends Model
     }
 
     /**
+     * Get the project's test cases.
+     */
+    public function testCases(): HasMany
+    {
+        return $this->hasMany(TestCase::class);
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>

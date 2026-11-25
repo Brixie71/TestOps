@@ -10,6 +10,8 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\Projects\ProjectMembershipController;
 use App\Http\Controllers\Projects\ProjectOwnershipController;
+use App\Http\Controllers\Projects\TestCaseController;
+use App\Http\Controllers\Projects\TestSuiteController;
 use App\Http\Controllers\Settings\AnnouncementController;
 use App\Http\Controllers\Settings\AuditLogController;
 use App\Http\Controllers\Settings\BulkUserController;
@@ -115,6 +117,30 @@ Route::middleware('auth')->group(function () {
     Route::middleware('active.account')->group(function (): void {
         Route::get('projects', [ProjectController::class, 'index'])->name('projects.index');
         Route::get('projects/{project}', [ProjectController::class, 'show'])->name('projects.show');
+
+        // Testing workspace: suites and cases. Read access is the project
+        // viewTestCases ability; every mutation is the manageTestCases
+        // ability, enforced in the controllers. SYSTEM_ADMIN stays read-only.
+        Route::get('projects/{project}/testing', [TestSuiteController::class, 'index'])
+            ->name('projects.testing.index');
+
+        Route::post('projects/{project}/test-suites', [TestSuiteController::class, 'store'])
+            ->name('projects.test-suites.store');
+        Route::patch('projects/{project}/test-suites/{testSuite}', [TestSuiteController::class, 'update'])
+            ->scopeBindings()
+            ->name('projects.test-suites.update');
+        Route::delete('projects/{project}/test-suites/{testSuite}', [TestSuiteController::class, 'destroy'])
+            ->scopeBindings()
+            ->name('projects.test-suites.destroy');
+
+        Route::post('projects/{project}/test-cases', [TestCaseController::class, 'store'])
+            ->name('projects.test-cases.store');
+        Route::patch('projects/{project}/test-cases/{testCase}', [TestCaseController::class, 'update'])
+            ->scopeBindings()
+            ->name('projects.test-cases.update');
+        Route::delete('projects/{project}/test-cases/{testCase}', [TestCaseController::class, 'destroy'])
+            ->scopeBindings()
+            ->name('projects.test-cases.destroy');
     });
 });
 

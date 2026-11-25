@@ -104,6 +104,41 @@ class ProjectPolicy
     }
 
     /**
+     * Testing-domain read ability: suites and cases inside one project.
+     *
+     * SYSTEM_ADMIN views read-only across projects through the system-scope
+     * `test_cases.view` grant; owners and project members holding the same
+     * project-scoped permission see their own project.
+     */
+    public function viewTestCases(User $user, Project $project): bool
+    {
+        if ($this->isSystemAdmin($user)) {
+            return $this->hasSystemGrant($user, 'test_cases.view')
+                || $this->projectRoleGrants($user, $project, 'test_cases.view');
+        }
+
+        return $this->isOwner($user, $project)
+            || $this->projectRoleGrants($user, $project, 'test_cases.view');
+    }
+
+    /**
+     * Testing-domain write ability: authoring suites and cases.
+     *
+     * SYSTEM_ADMIN is read-only for the testing domain (approved B7), so the
+     * system grant never reaches this ability. Only the project owner or a
+     * member whose project-scoped role holds `test_cases.manage` may write.
+     */
+    public function manageTestCases(User $user, Project $project): bool
+    {
+        if ($this->isSystemAdmin($user)) {
+            return false;
+        }
+
+        return $this->isOwner($user, $project)
+            || $this->projectRoleGrants($user, $project, 'test_cases.manage');
+    }
+
+    /**
      * System administrators hold the required permission through their
      * system-scope role, independent of any project membership.
      */
