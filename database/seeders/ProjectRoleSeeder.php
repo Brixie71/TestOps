@@ -73,6 +73,14 @@ class ProjectRoleSeeder extends Seeder
             'name' => 'Manage Test Runs',
             'description' => 'Allows starting, completing, and aborting test runs within the authorized project scope.',
         ],
+        'defects.view' => [
+            'name' => 'View Defects',
+            'description' => 'Allows viewing defects within the authorized scope.',
+        ],
+        'defects.manage' => [
+            'name' => 'Manage Defects',
+            'description' => 'Allows reporting, updating, and transitioning defects within the authorized project scope.',
+        ],
     ];
 
     /**

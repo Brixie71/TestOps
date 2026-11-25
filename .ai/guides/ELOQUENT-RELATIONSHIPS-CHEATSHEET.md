@@ -16,7 +16,7 @@ public function owner(): BelongsTo
 }
 ```
 
-Use cases: Project → Owner; TestCase → TestSuite; TestResult → TestRun; TestResult → TestCase.
+Use cases: Project → Owner; TestCase → TestSuite; TestRunCase → TestRun; TestRunCase → TestCase; TestResult → TestRunCase; Defect → TestResult (optional).
 
 ### `hasOne()` — One-to-One
 The related model contains a foreign key referencing the current model.
@@ -40,7 +40,7 @@ public function testSuites(): HasMany
 }
 ```
 
-Use cases: Project → TestSuites; TestSuite → TestCases; TestRun → TestResults. Project → Defects only if `defects` has `project_id`.
+Use cases: Project → TestSuites; TestSuite → TestCases; Project → TestRuns; TestRun → TestRunCases; Project → Defects; TestResult → Defects.
 
 ### `belongsToMany()` — Many-to-Many
 Both models can have multiple associated records. A pivot table stores the associations.
@@ -60,9 +60,9 @@ Use cases: Project ↔ Users through `project_user`; Role ↔ Permissions throug
 Access records through an intermediate model.
 
 ```php
-public function testResults(): HasManyThrough
+public function testCases(): HasManyThrough
 {
-    return $this->hasManyThrough(TestResult::class, TestRun::class);
+    return $this->hasManyThrough(TestCase::class, TestSuite::class);
 }
 ```
 
@@ -133,14 +133,19 @@ This is a proposed map based on the approved domain and discussed schema. Confir
 | TestSuite | testCases | TestCase | hasMany | `test_cases.test_suite_id` |
 | TestCase | testSuite | TestSuite | belongsTo | `test_cases.test_suite_id` |
 | TestRun | project | Project | belongsTo | `test_runs.project_id` |
-| TestRun | testResults | TestResult | hasMany | `test_results.test_run_id` |
-| TestResult | testRun | TestRun | belongsTo | `test_results.test_run_id` |
-| TestResult | testCase | TestCase | belongsTo | `test_results.test_case_id` |
-| Defect | testResult | TestResult | belongsTo | Requires `defects.test_result_id`; cardinality unconfirmed |
+| TestRun | cases | TestRunCase | hasMany | `test_run_cases.test_run_id` |
+| TestRunCase | run | TestRun | belongsTo | `test_run_cases.test_run_id` |
+| TestRunCase | testCase | TestCase | belongsTo | `test_run_cases.test_case_id` |
+| TestRunCase | result | TestResult | hasOne | `test_results.test_run_case_id` |
+| TestResult | runCase | TestRunCase | belongsTo | `test_results.test_run_case_id` |
+| TestResult | defects | Defect | hasMany | `defects.test_result_id` |
+| Defect | project | Project | belongsTo | `defects.project_id` |
+| Defect | testResult | TestResult | belongsTo | Optional `defects.test_result_id` |
+| Project | defects | Defect | hasMany | `defects.project_id` |
 | Role | permissions | Permission | belongsToMany | `permission_role` |
 | Permission | roles | Role | belongsToMany | `permission_role` |
 
-**Cautions:** Defect ↔ TestResult cardinality remains undecided. Do not implement it until confirmed. Project → TestResults through TestRuns may be possible, but verify keys and use case first.
+**Cautions:** A defect may link to at most one result, and a result may have many defects; the link is optional and clears (never deletes the defect) if the result disappears. Project → TestResults through TestRuns may be possible, but verify keys and use case first.
 
 ## 6. AI coding assistant rules
 

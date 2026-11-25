@@ -472,7 +472,6 @@ These are separate concerns unless the approved Dashboard scope explicitly requi
 - Production secrets management.
 - Advanced authorization policies beyond the permissions needed for the Dashboard.
 - Dashboard analytics and reporting.
-- TestResult and Defect relationship implementation.
 - Additional domain models not yet approved.
 
 Do not expand initial setup indefinitely. Once the required gate is satisfied, move to the Dashboard specification.

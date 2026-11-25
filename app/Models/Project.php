@@ -71,6 +71,14 @@ class Project extends Model
     }
 
     /**
+     * Get the project's defects.
+     */
+    public function defects(): HasMany
+    {
+        return $this->hasMany(Defect::class);
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>

@@ -171,6 +171,38 @@ class ProjectPolicy
     }
 
     /**
+     * Testing-domain read ability: defects inside one project.
+     *
+     * SYSTEM_ADMIN views read-only across projects through the system-scope
+     * `defects.view` grant; owners and project members holding the same
+     * project-scoped permission see their own project.
+     */
+    public function viewDefects(User $user, Project $project): bool
+    {
+        if ($this->isSystemAdmin($user)) {
+            return $this->hasSystemGrant($user, 'defects.view')
+                || $this->projectRoleGrants($user, $project, 'defects.view');
+        }
+
+        return $this->isOwner($user, $project)
+            || $this->projectRoleGrants($user, $project, 'defects.view');
+    }
+
+    /**
+     * Testing-domain defect ability: reporting, editing, and transitioning
+     * defects. SYSTEM_ADMIN is read-only for the testing domain (approved B7).
+     */
+    public function manageDefects(User $user, Project $project): bool
+    {
+        if ($this->isSystemAdmin($user)) {
+            return false;
+        }
+
+        return $this->isOwner($user, $project)
+            || $this->projectRoleGrants($user, $project, 'defects.manage');
+    }
+
+    /**
      * System administrators hold the required permission through their
      * system-scope role, independent of any project membership.
      */

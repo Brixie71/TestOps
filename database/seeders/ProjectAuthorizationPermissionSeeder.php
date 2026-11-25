@@ -12,7 +12,8 @@ class ProjectAuthorizationPermissionSeeder extends Seeder
 {
     /**
      * System-scope permissions created and maintained by this seeder and
-     * granted to SYSTEM_ADMIN for cross-project ownership management.
+     * granted to SYSTEM_ADMIN for cross-project visibility and ownership
+     * management.
      *
      * @var array<string, array{name: string, description: string}>
      */
@@ -32,6 +33,12 @@ class ProjectAuthorizationPermissionSeeder extends Seeder
         'test_runs.view' => [
             'name' => 'View Test Runs',
             'description' => 'Allows viewing test runs and their frozen case snapshots within the authorized scope.',
+        ],
+        // Read-only defect visibility: SYSTEM_ADMIN may browse defects across
+        // projects but never report or transition them (approved B7).
+        'defects.view' => [
+            'name' => 'View Defects',
+            'description' => 'Allows viewing defects within the authorized scope.',
         ],
     ];
 

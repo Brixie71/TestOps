@@ -24,7 +24,7 @@ class ProjectAuthorizationPermissionSeederTest extends TestCase
 
         (new ProjectAuthorizationPermissionSeeder)->run();
 
-        $this->assertDatabaseCount('permissions', 11);
+        $this->assertDatabaseCount('permissions', 13);
 
         $this->assertDatabaseHas('permissions', [
             'code' => 'projects.manage-ownership',
@@ -41,7 +41,7 @@ class ProjectAuthorizationPermissionSeederTest extends TestCase
         $attachedCodes = $systemAdmin->permissions()->orderBy('code')->pluck('code')->all();
 
         $this->assertSame([], array_values(array_diff(
-            ['projects.manage-members', 'projects.manage-ownership', 'test_cases.view', 'test_runs.view'],
+            ['projects.manage-members', 'projects.manage-ownership', 'test_cases.view', 'test_runs.view', 'defects.view'],
             $attachedCodes,
         )));
     }
@@ -73,7 +73,7 @@ class ProjectAuthorizationPermissionSeederTest extends TestCase
 
         $seeder->run();
 
-        $this->assertDatabaseCount('permissions', 11);
+        $this->assertDatabaseCount('permissions', 13);
         $this->assertSame($originalPermissionIds, $this->systemAdminRole()
             ->permissions()
             ->orderBy('code')

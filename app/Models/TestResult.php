@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * The recorded execution outcome of one frozen case inside a run.
@@ -58,6 +59,14 @@ class TestResult extends Model
     public function recorder(): BelongsTo
     {
         return $this->belongsTo(User::class, 'recorded_by')->withTrashed();
+    }
+
+    /**
+     * Get the defects traced to this result.
+     */
+    public function defects(): HasMany
+    {
+        return $this->hasMany(Defect::class);
     }
 
     /**

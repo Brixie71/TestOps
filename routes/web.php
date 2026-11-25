@@ -8,6 +8,7 @@ use App\Http\Controllers\Auth\InvitationRecoveryController;
 use App\Http\Controllers\AuthenticatedSessionController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\Projects\DefectController;
 use App\Http\Controllers\Projects\ProjectMembershipController;
 use App\Http\Controllers\Projects\ProjectOwnershipController;
 use App\Http\Controllers\Projects\TestCaseController;
@@ -165,6 +166,18 @@ Route::middleware('auth')->group(function () {
         Route::post('projects/{project}/test-runs/{testRun}/results', [TestRunController::class, 'recordResult'])
             ->scopeBindings()
             ->name('projects.test-runs.results.store');
+
+        // Defects: project-scoped reports, optionally traced to a result.
+        Route::get('projects/{project}/defects', [DefectController::class, 'index'])
+            ->name('projects.defects.index');
+        Route::post('projects/{project}/defects', [DefectController::class, 'store'])
+            ->name('projects.defects.store');
+        Route::patch('projects/{project}/defects/{defect}', [DefectController::class, 'update'])
+            ->scopeBindings()
+            ->name('projects.defects.update');
+        Route::patch('projects/{project}/defects/{defect}/status', [DefectController::class, 'transition'])
+            ->scopeBindings()
+            ->name('projects.defects.status.update');
     });
 });
 
