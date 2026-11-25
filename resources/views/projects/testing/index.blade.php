@@ -35,6 +35,13 @@
                 <h1 class="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Testing</h1>
                 <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Suites and cases for {{ $project->name }}.</p>
             </div>
+
+            <a
+                href="{{ route('projects.test-runs.index', $project) }}"
+                class="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+            >
+                Test runs
+            </a>
         </header>
 
         @if (session('status'))

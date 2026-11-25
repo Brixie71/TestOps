@@ -63,6 +63,14 @@ class Project extends Model
     }
 
     /**
+     * Get the project's test runs.
+     */
+    public function testRuns(): HasMany
+    {
+        return $this->hasMany(TestRun::class);
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>

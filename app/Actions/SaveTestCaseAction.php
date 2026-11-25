@@ -4,10 +4,12 @@ namespace App\Actions;
 
 use App\Models\Project;
 use App\Models\TestCase;
+use App\Models\TestRunCase;
 use App\Models\TestSuite;
 use App\Models\User;
 use App\Services\Audit\AuditLogger;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Create, update, and delete test cases as one audited operation.
@@ -99,6 +101,14 @@ class SaveTestCaseAction
     public function delete(User $actor, TestCase $case): void
     {
         DB::transaction(function () use ($actor, $case): void {
+            // A case referenced by a run is part of recorded history: the
+            // run's frozen snapshot must keep pointing at a real case.
+            if (TestRunCase::query()->where('test_case_id', $case->getKey())->exists()) {
+                throw ValidationException::withMessages([
+                    'test_case' => 'This test case is part of a test run and cannot be deleted.',
+                ]);
+            }
+
             $before = $this->snapshot($case);
 
             $case->delete();

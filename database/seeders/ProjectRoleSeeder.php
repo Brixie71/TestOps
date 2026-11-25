@@ -65,6 +65,14 @@ class ProjectRoleSeeder extends Seeder
             'name' => 'Manage Test Cases',
             'description' => 'Allows creating, updating, and deleting test suites and test cases within the authorized project scope.',
         ],
+        'test_runs.view' => [
+            'name' => 'View Test Runs',
+            'description' => 'Allows viewing test runs and their frozen case snapshots within the authorized scope.',
+        ],
+        'test_runs.manage' => [
+            'name' => 'Manage Test Runs',
+            'description' => 'Allows starting, completing, and aborting test runs within the authorized project scope.',
+        ],
     ];
 
     /**

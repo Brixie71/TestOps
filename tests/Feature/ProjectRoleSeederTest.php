@@ -30,6 +30,8 @@ class ProjectRoleSeederTest extends TestCase
         'projects.assign-roles',
         'test_cases.view',
         'test_cases.manage',
+        'test_runs.view',
+        'test_runs.manage',
     ];
 
     public function test_it_creates_the_canonical_project_admin_role_with_approved_permissions(): void
@@ -71,8 +73,8 @@ class ProjectRoleSeederTest extends TestCase
         $seeder->run();
 
         $this->assertDatabaseCount('roles', 1);
-        $this->assertDatabaseCount('permissions', 8);
-        $this->assertDatabaseCount('permission_role', 8);
+        $this->assertDatabaseCount('permissions', 10);
+        $this->assertDatabaseCount('permission_role', 10);
         $this->assertSame($originalRoleId, $this->projectAdminRole()->id);
         $this->assertSame($originalPermissionIds, $this->projectAdminRole()
             ->permissions()

@@ -11,6 +11,7 @@ use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\Projects\ProjectMembershipController;
 use App\Http\Controllers\Projects\ProjectOwnershipController;
 use App\Http\Controllers\Projects\TestCaseController;
+use App\Http\Controllers\Projects\TestRunController;
 use App\Http\Controllers\Projects\TestSuiteController;
 use App\Http\Controllers\Settings\AnnouncementController;
 use App\Http\Controllers\Settings\AuditLogController;
@@ -141,6 +142,23 @@ Route::middleware('auth')->group(function () {
         Route::delete('projects/{project}/test-cases/{testCase}', [TestCaseController::class, 'destroy'])
             ->scopeBindings()
             ->name('projects.test-cases.destroy');
+
+        // Test runs: start over selected cases, view the frozen snapshots,
+        // and complete or abort. Reads gate on viewTestRuns; mutations on
+        // manageTestRuns. SYSTEM_ADMIN stays read-only.
+        Route::get('projects/{project}/test-runs', [TestRunController::class, 'index'])
+            ->name('projects.test-runs.index');
+        Route::post('projects/{project}/test-runs', [TestRunController::class, 'store'])
+            ->name('projects.test-runs.store');
+        Route::get('projects/{project}/test-runs/{testRun}', [TestRunController::class, 'show'])
+            ->scopeBindings()
+            ->name('projects.test-runs.show');
+        Route::patch('projects/{project}/test-runs/{testRun}/complete', [TestRunController::class, 'complete'])
+            ->scopeBindings()
+            ->name('projects.test-runs.complete');
+        Route::patch('projects/{project}/test-runs/{testRun}/abort', [TestRunController::class, 'abort'])
+            ->scopeBindings()
+            ->name('projects.test-runs.abort');
     });
 });
 

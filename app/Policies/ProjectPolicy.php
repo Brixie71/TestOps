@@ -139,6 +139,38 @@ class ProjectPolicy
     }
 
     /**
+     * Testing-domain read ability: runs inside one project.
+     *
+     * SYSTEM_ADMIN views read-only across projects through the system-scope
+     * `test_runs.view` grant; owners and project members holding the same
+     * project-scoped permission see their own project.
+     */
+    public function viewTestRuns(User $user, Project $project): bool
+    {
+        if ($this->isSystemAdmin($user)) {
+            return $this->hasSystemGrant($user, 'test_runs.view')
+                || $this->projectRoleGrants($user, $project, 'test_runs.view');
+        }
+
+        return $this->isOwner($user, $project)
+            || $this->projectRoleGrants($user, $project, 'test_runs.view');
+    }
+
+    /**
+     * Testing-domain execution ability: starting, completing, and aborting
+     * runs. SYSTEM_ADMIN is read-only for the testing domain (approved B7).
+     */
+    public function manageTestRuns(User $user, Project $project): bool
+    {
+        if ($this->isSystemAdmin($user)) {
+            return false;
+        }
+
+        return $this->isOwner($user, $project)
+            || $this->projectRoleGrants($user, $project, 'test_runs.manage');
+    }
+
+    /**
      * System administrators hold the required permission through their
      * system-scope role, independent of any project membership.
      */

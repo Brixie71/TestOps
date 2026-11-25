@@ -27,6 +27,12 @@ class ProjectAuthorizationPermissionSeeder extends Seeder
             'name' => 'View Test Cases',
             'description' => 'Allows viewing test suites and test cases within the authorized scope.',
         ],
+        // Read-only run visibility: SYSTEM_ADMIN may browse runs across
+        // projects but never start or finish them (approved B7).
+        'test_runs.view' => [
+            'name' => 'View Test Runs',
+            'description' => 'Allows viewing test runs and their frozen case snapshots within the authorized scope.',
+        ],
     ];
 
     /**
