@@ -5,6 +5,7 @@ namespace Tests\Feature\Models;
 use App\Models\Project;
 use App\Models\TestSuite;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use LogicException;
 use Tests\TestCase;
 
 class TestSuiteTest extends TestCase
@@ -50,16 +51,17 @@ class TestSuiteTest extends TestCase
         $this->assertNull($suite->description);
     }
 
-    public function test_deleting_a_project_deletes_its_test_suites(): void
+    public function test_deleting_a_project_holding_test_suites_is_refused(): void
     {
         $project = Project::factory()->create();
-        $suite = TestSuite::query()->create([
+        TestSuite::query()->create([
             'project_id' => $project->getKey(),
             'name' => 'Smoke',
         ]);
 
-        $project->delete();
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('cannot be deleted while it holds testing data');
 
-        $this->assertDatabaseMissing('test_suites', ['id' => $suite->getKey()]);
+        $project->delete();
     }
 }

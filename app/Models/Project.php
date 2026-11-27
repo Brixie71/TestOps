@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Services\Projects\ProjectDeletionDependencyInspector;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
+use LogicException;
 
 // Ownership (owner_id) and the automatic-assignment setting are
 // deliberately not mass-assignable; they are controlled through the
@@ -76,6 +79,30 @@ class Project extends Model
     public function defects(): HasMany
     {
         return $this->hasMany(Defect::class);
+    }
+
+    /**
+     * Refuse deletion while testing data exists, so a project row can never
+     * silently take its suites, cases, runs, and defects with it.
+     */
+    protected static function booted(): void
+    {
+        static::deleting(function (Project $project): void {
+            $dependencies = (new ProjectDeletionDependencyInspector)->blockingDependencies($project);
+
+            if ($dependencies === []) {
+                return;
+            }
+
+            $summary = implode(', ', array_map(
+                fn (array $dependency): string => $dependency['count'].' '.Str::plural($dependency['label'], $dependency['count']),
+                $dependencies,
+            ));
+
+            throw new LogicException(
+                "This project cannot be deleted while it holds testing data ({$summary}). Retain the project to preserve that history."
+            );
+        });
     }
 
     /**
