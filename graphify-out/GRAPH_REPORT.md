@@ -1,17 +1,17 @@
 # Graph Report - TestOps  (2026-11-26)
 
 ## Corpus Check
-- 401 files · ~247,411 words
+- 403 files · ~247,908 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 28 file(s) not represented in the graph (top: (none) 20, .ini 3, .example 2)
 
 ## Summary
-- 3213 nodes · 8769 edges · 269 communities (70 shown, 199 thin omitted)
+- 3224 nodes · 8799 edges · 271 communities (70 shown, 201 thin omitted)
 - Extraction: 93% EXTRACTED · 7% INFERRED · 0% AMBIGUOUS · INFERRED: 600 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `9b120f8a`
+- Built from commit: `24cd4d8a`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -23,13 +23,13 @@
 - ServiceClientAuthorizationTest
 - Illuminate\Support\Facades\DB
 - ProjectActivityNotificationTest.php
-- App\Models\User
+- App\Services\Audit\AuditLogger
 - RoleSeeder
 - generate.js
 - UserDirectoryTest.php
-- App\Actions\RequestEmailChangeAction
+- UpdateUserProfileAction
 - haraka
-- ProjectActivityNotificationTest.php
+- AccountSecurityNotificationService
 - PasswordPolicy
 - ChangeProjectMemberRoleActionTest
 - Illuminate\Database\Eloquent\Relations\BelongsTo
@@ -46,20 +46,19 @@
 - Illuminate\Database\Schema\Blueprint
 - PasswordResetRequest
 - Illuminate\Http\Request
-- App\Services\Audit\AuditLogger
+- Illuminate\Support\Facades\DB
 - package.json
-- web.php
-- App\Http\Controllers\Settings\RoleController
+- NotificationDeliveryRetry
 - EnsureActiveAccountMiddlewareTest.php
 - UserRoleAssignmentTest
 - AuditLogPageTest
 - AssignProjectOwnerActionTest
-- NotificationDelivery
+- NotificationDeliveryRetryServiceTest.php
 - ProjectOwnershipTest
 - UserLifecycleHttpTest
 - InvitationLifecycleTest
 - App\Http\Controllers\Settings\AuditLogController
-- UserInvitation
+- .hash
 - NotificationDeliveryHistoryTest
 - ProjectPolicyTest
 - SystemAnnouncementMailable
@@ -83,7 +82,7 @@
 - PermissionMiddlewareTest
 - EmailChangeTest
 - AuditLogController
-- ProjectMembershipRules
+- NotificationDelivery
 - ProjectFactory.php
 - UserFactory
 - EmailChangeVerificationTest
@@ -121,7 +120,7 @@
 - .isSuperAdmin
 - EmailVerificationService
 - App\Http\Controllers\ProjectController
-- App\Services\Auth\CredentialHasher
+- UserEmailAddress
 - .log
 - NotificationDeliveryTest
 - EmailVerificationRequestFactory
@@ -147,9 +146,9 @@
 - EmailVerificationLimitSettings
 - UserInvitationHttpTest
 - Illuminate\Database\Eloquent\Factories\Factory
-- Illuminate\Support\Facades\DB
+- NotificationDeliveryRetryTest
 - PasswordPolicyTest
-- ChangeAutoAssignmentSettingActionTest
+- App\Http\Controllers\Projects\TestSuiteController
 - AuthorizationCodePkceTest
 - ProjectTestResultHttpTest
 - 2026_11_04_152616_add_account_status_to_users_table.php
@@ -160,25 +159,25 @@
 - UserEmailAddressFactoryTest
 - PermissionManagementTest
 - PermanentUserDeletionHttpTest
-- ProjectActivityNotificationService
-- PermissionCheckerTest
+- App\Services\Authorization\ProjectVisibility
+- InvitationLinkRequest
 - 2026_11_02_074820_create_project_user_table.php
 - InvitationLinkMailable
 - ProfileUpdateTest
 - 2026_11_09_041659_create_invitation_link_requests_table.php
 - RevokesUserCredentialsTest
-- UnassignProjectOwnerActionTest
-- NotificationStatusTest
+- SystemAnnouncementNotificationService
+- App\Models\NotificationDeliveryRetry
 - 2026_11_24_054243_create_test_cases_table.php
-- ManageDefectAction.php
+- SystemSettingAccountLinkExpirationResource
 - 2026_11_24_054244_create_test_case_steps_table.php
 - 2026_11_05_005052_create_system_settings_table.php
 - AuthenticatedShellTest
 - AuthorizationCodePkceMiddlewareTest
-- .hash
 - AuditLoggerTest
+- TestCaseFactory.php
 - NotificationPreferencesTest
-- App\Http\Controllers\Settings\BulkUserController
+- Illuminate\Http\Request
 - audit-logs.blade.php
 - user-details.blade.php
 - .consume
@@ -204,25 +203,26 @@
 - 2026_11_20_135544_create_test_suites_table.php
 - defects/index.blade.php
 - test-runs/index.blade.php
-- EmailVerificationLimitSettingsHttpTest
+- App\Http\Controllers\Projects\TestCaseController
 - ProjectVisibilityTest
-- CompleteAccountActivationAction
+- Database\Factories\NotificationDeliveryFactory
 - OAuthScopeIssuanceTest
 - .retry
-- Illuminate\Database\Eloquent\Relations\BelongsToMany
+- CancelEmailChangeAction
 - InvitationLinkRequestFactory
-- TestSuiteTest
+- Database\Factories\UserFactory
 - {closure#1}
-- EmailVerificationAttemptCounter
+- EmailVerificationRequest
 - bootstrap/app.php
+- AuditLogTest
+- ProjectDeletionTest
 - TestRunFactory.php
 - UserNotificationPreference
 - Project
-- DashboardHttpTest
 
 ## God Nodes (most connected - your core abstractions)
 1. `User` - 180 edges
-2. `Project` - 111 edges
+2. `Project` - 117 edges
 3. `TestCase` - 106 edges
 4. `EmailVerificationService` - 81 edges
 5. `Role` - 73 edges
@@ -233,8 +233,6 @@
 10. `RoleSeeder` - 44 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `{closure#2}()` --references--> `AccountReactivatedMailable`  [EXTRACTED]
-  tests/Feature/Actions/SecurityNotificationTest.php → app/Mail/AccountReactivatedMailable.php
 - `{closure#16}()` --references--> `User`  [EXTRACTED]
   tests/Feature/Settings/UserDirectoryTest.php → app/Models/User.php
 - `DeactivateUserActionTest` --references--> `DeactivateUserAction`  [EXTRACTED]
@@ -243,71 +241,65 @@
   tests/Feature/Auth/EmailVerificationHttpTest.php → app/Services/Auth/EmailVerificationService.php
 - `EmailVerificationIssuanceLimitsTest` --references--> `EmailVerificationService`  [EXTRACTED]
   tests/Feature/Auth/EmailVerificationIssuanceLimitsTest.php → app/Services/Auth/EmailVerificationService.php
+- `InvitationDeliveryIntegrationTest` --references--> `ResendUserInvitationAction`  [EXTRACTED]
+  tests/Feature/Auth/InvitationDeliveryIntegrationTest.php → app/Actions/ResendUserInvitationAction.php
 
 ## Import Cycles
 - None detected.
 
-## Communities (269 total, 199 thin omitted)
+## Communities (271 total, 201 thin omitted)
 
 ### Community 0 - "UserLifecycleAuthorizer"
-Cohesion: 0.16
-Nodes (6): {closure#1}(), CancelEmailChangeAction, {closure#1}(), {closure#1}(), UserEmailChangeController, UserLifecycleAuthorizer
-
-### Community 1 - "DeactivateUserActionTest"
-Cohesion: 0.11
-Nodes (4): {closure#3}(), LifecycleConnectionGuard, DeactivateUserActionTest, LifecycleConnectionGuardTest
+Cohesion: 0.13
+Nodes (6): {closure#1}(), {closure#1}(), {closure#2}(), {closure#1}(), UserLifecycleAuthorizer, PermissionCheckerTest
 
 ### Community 2 - "AddProjectMemberActionTest"
 Cohesion: 0.09
 Nodes (3): AddProjectMemberActionTest, EmailLinkExpirationAuthorizationTest, ProjectPolicyAbilitiesTest
 
 ### Community 3 - "Illuminate\Database\Eloquent\Builder"
-Cohesion: 0.12
-Nodes (23): {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}(), {closure#5}(), {closure#6}(), {closure#1}(), {closure#1}() (+15 more)
+Cohesion: 0.13
+Nodes (19): {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}(), {closure#5}(), {closure#6}(), {closure#3}(), {closure#4}() (+11 more)
 
 ### Community 5 - "Illuminate\Support\Facades\DB"
-Cohesion: 0.07
-Nodes (7): AuditLog, Permission, Role, User, OAuthScopes, ExampleTest, TestCase
+Cohesion: 0.09
+Nodes (8): CancelUserInvitationAction, AuditLog, Permission, Role, User, OAuthScopes, ExampleTest, TestCase
 
-### Community 7 - "App\Models\User"
-Cohesion: 0.16
-Nodes (3): ProjectActivityMessageFactory, {closure#1}(), {closure#2}()
+### Community 7 - "App\Services\Audit\AuditLogger"
+Cohesion: 0.05
+Nodes (35): AddProjectMemberAction, {closure#1}(), AssignProjectOwnerAction, {closure#1}(), {closure#1}(), ChangeProjectMemberRoleAction, {closure#1}(), {closure#1}() (+27 more)
 
 ### Community 8 - "RoleSeeder"
-Cohesion: 0.08
+Cohesion: 0.10
 Nodes (6): ProjectAuthorizationPermissionSeeder, ProjectRoleSeeder, RoleSeeder, ProjectAuthorizationPermissionSeederTest, ProjectRoleSeederTest, RoleSeederTest
 
 ### Community 9 - "generate.js"
 Cohesion: 0.06
 Nodes (23): allNoBorders, ASSETS, body, BODY_FONT, bodyMargin, buildCoverR1(), bullet(), calcCoverSpacing() (+15 more)
 
-### Community 11 - "App\Actions\RequestEmailChangeAction"
-Cohesion: 0.14
-Nodes (4): {closure#1}(), UpdateUserProfileAction, ProfileController, UserProfileController
-
 ### Community 12 - "haraka"
 Cohesion: 0.06
 Nodes (31): context, dockerfile, driver, DELIVERY_MODE, HARAKA_SMTP_PASSWORD, HARAKA_SMTP_USER, MP_DATABASE, MP_MAX_MESSAGES (+23 more)
 
-### Community 13 - "ProjectActivityNotificationTest.php"
-Cohesion: 0.24
-Nodes (14): {closure#1}(), {closure#10}(), {closure#11}(), {closure#12}(), {closure#13}(), {closure#14}(), {closure#2}(), {closure#3}() (+6 more)
+### Community 13 - "AccountSecurityNotificationService"
+Cohesion: 0.22
+Nodes (4): AssignUserRoleAction, ChangeOwnPasswordAction, {closure#2}(), AccountSecurityNotificationService
 
 ### Community 14 - "PasswordPolicy"
-Cohesion: 0.22
-Nodes (4): {closure#2}(), SetUserPasswordAction, UserPasswordController, PasswordPolicy
+Cohesion: 0.14
+Nodes (7): CompleteForcedPasswordResetAction, ForceUserPasswordResetAction, SetUserPasswordAction, ForcedPasswordResetController, UserPasswordController, PasswordPolicy, PasswordResetService
 
 ### Community 16 - "Illuminate\Database\Eloquent\Relations\BelongsTo"
 Cohesion: 0.13
-Nodes (4): {closure#2}(), {closure#1}(), ServiceClientPermission, TestCaseStep
+Nodes (5): PasswordResetRequest, ServiceClientPermission, TestCaseStep, TestSuite, UserInvitation
 
 ### Community 19 - "App\Models\NotificationDelivery"
-Cohesion: 0.10
-Nodes (12): AccountReactivatedMailable, DirectAccountSetupMailable, EmailChangeCancelledMailable, EmailChangeVerificationMailable, EmailVerificationMailable, PasswordChangedMailable, PasswordResetMailable, {closure#1}() (+4 more)
-
-### Community 21 - "static"
 Cohesion: 0.12
-Nodes (3): DefectFactory, TestCaseFactory, TestResultFactory
+Nodes (9): DirectAccountSetupMailable, EmailChangeCancelledMailable, EmailChangeVerificationMailable, EmailVerificationMailable, PasswordResetMailable, {closure#1}(), {closure#2}(), {closure#3}() (+1 more)
+
+### Community 20 - "ReactivateUserActionTest"
+Cohesion: 0.13
+Nodes (3): LifecycleConnectionGuard, ReactivateUserActionTest, LifecycleConnectionGuardTest
 
 ### Community 22 - "AccountLinkExpirationSettings"
 Cohesion: 0.21
@@ -327,38 +319,42 @@ Nodes (14): {closure#1}(), {closure#2}(), {closure#3}(), {closure#1}(), {closure
 
 ### Community 29 - "Illuminate\Http\Request"
 Cohesion: 0.13
-Nodes (6): InvitationAcceptanceController, InvitationRecoveryController, AuthenticatedSessionController, Controller, ProjectController, UserLifecycleController
+Nodes (6): EmailChangeVerificationController, EmailVerificationController, InvitationAcceptanceController, InvitationRecoveryController, ProjectController, GET /()
 
-### Community 30 - "App\Services\Audit\AuditLogger"
-Cohesion: 0.12
-Nodes (12): ChangeOwnPasswordAction, CompleteForcedPasswordResetAction, DeactivateUserAction, ForceUserPasswordResetAction, {closure#1}(), PermanentlyDeleteUserAction, ReactivateUserAction, ForcedPasswordResetController (+4 more)
+### Community 30 - "Illuminate\Support\Facades\DB"
+Cohesion: 0.07
+Nodes (6): DeactivateUserAction, PermanentlyDeleteUserAction, ReactivateUserAction, {closure#2}(), RevokesUserCredentials, UserDeletionDependencyInspector
 
 ### Community 31 - "package.json"
 Cohesion: 0.13
 Nodes (20): devDependencies, concurrently@^10.0.3, laravel-vite-plugin@^3.1, tailwindcss@^4.0.0, @tailwindcss/vite@^4.0.0, vite@^8.0.0, optionalDependencies, @laravel/multiplex@^0.4.1 (+12 more)
 
-### Community 38 - "NotificationDelivery"
-Cohesion: 0.06
-Nodes (11): {closure#1}(), {closure#3}(), {closure#4}(), {closure#5}(), NotificationDelivery, {closure#1}(), {closure#2}(), {closure#3}() (+3 more)
+### Community 33 - "NotificationDeliveryRetry"
+Cohesion: 0.18
+Nodes (3): NotificationDeliveryRetry, {closure#2}(), NotificationDeliveryRetryService
 
 ### Community 42 - "App\Http\Controllers\Settings\AuditLogController"
-Cohesion: 0.10
+Cohesion: 0.12
 Nodes (9): {closure#11}(), {closure#12}(), {closure#13}(), {closure#14}(), {closure#15}(), {closure#5}(), {closure#6}(), {closure#7}() (+1 more)
 
-### Community 43 - "UserInvitation"
-Cohesion: 0.09
-Nodes (9): CancelUserInvitationAction, {closure#1}(), RecoverUserInvitationAction, {closure#1}(), {closure#9}(), UserInvitationController, InvitationLinkRequest, UserInvitation (+1 more)
+### Community 43 - ".hash"
+Cohesion: 0.12
+Nodes (5): {closure#1}(), {closure#1}(), {closure#2}(), {closure#9}(), InvitationRateLimitException
 
 ### Community 46 - "SystemAnnouncementMailable"
-Cohesion: 0.18
+Cohesion: 0.20
 Nodes (5): SystemAnnouncementMailable, {closure#1}(), {closure#2}(), {closure#3}(), SystemAnnouncementTest
+
+### Community 47 - "Defect"
+Cohesion: 0.08
+Nodes (7): {closure#1}(), {closure#2}(), {closure#3}(), ManageDefectAction, Defect, DashboardHttpTest, ProjectDefectHttpTest
 
 ### Community 49 - "TestRun"
 Cohesion: 0.07
 Nodes (6): {closure#1}(), {closure#3}(), ManageTestRunAction, TestRun, ProjectTestingHttpTest, ProjectTestRunHttpTest
 
 ### Community 50 - ".view"
-Cohesion: 0.18
+Cohesion: 0.14
 Nodes (6): ProjectPolicy, {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}(), {closure#5}()
 
 ### Community 53 - "2026_11_16_000001_create_password_reset_requests_table.php"
@@ -366,40 +362,40 @@ Cohesion: 0.33
 Nodes (5): {closure#1}(), {closure#2}(), {closure#3}(), createOutstandingRequestUniqueIndex(), up()
 
 ### Community 54 - "PasswordResetRequest"
-Cohesion: 0.16
-Nodes (3): {closure#2}(), PasswordResetRequest, PasswordResetException
+Cohesion: 0.18
+Nodes (3): {closure#2}(), PasswordResetException, EmailVerificationLimitSettingsHttpTest
 
 ### Community 55 - "App\Models\Role"
-Cohesion: 0.11
-Nodes (3): EmailVerificationRequest, {closure#1}(), {closure#1}()
+Cohesion: 0.14
+Nodes (4): {closure#1}(), {closure#1}(), {closure#1}(), {closure#1}()
 
 ### Community 56 - "SecurityNotificationTest.php"
-Cohesion: 0.14
-Nodes (6): AccountDeactivatedMailable, SystemRoleChangedMailable, {closure#1}(), {closure#2}(), {closure#3}(), SecurityNotificationTest
+Cohesion: 0.11
+Nodes (8): AccountDeactivatedMailable, AccountReactivatedMailable, SystemRoleChangedMailable, SecurityNotificationRetryService, {closure#1}(), {closure#2}(), {closure#3}(), SecurityNotificationTest
 
 ### Community 57 - "Closure"
-Cohesion: 0.12
-Nodes (6): {closure#1}(), EnforceAuthorizationCodePkce, EnsurePermission, EnsureUserIsSuperAdmin, PermissionChecker, {closure#1}()
+Cohesion: 0.14
+Nodes (5): {closure#1}(), EnforceAuthorizationCodePkce, EnsurePermission, EnsureUserIsSuperAdmin, PermissionChecker
 
 ### Community 58 - "TestResult"
-Cohesion: 0.24
-Nodes (3): {closure#1}(), TestResult, TestRunCase
+Cohesion: 0.17
+Nodes (4): {closure#1}(), RecordTestResultAction, TestResult, TestRunCase
 
 ### Community 59 - "EmailLinkExpirationSetting"
-Cohesion: 0.11
-Nodes (7): AcceptInvitationAction, SystemSettingEmailLinkExpirationController, SystemSettingEmailLinkExpirationResource, SystemSetting, AuditLogger, EmailLinkExpirationSetting, EmailLinkExpirationSettingTest
+Cohesion: 0.16
+Nodes (5): SystemSettingEmailLinkExpirationController, SystemSetting, AuditLogger, EmailLinkExpirationSetting, EmailLinkExpirationSettingTest
 
 ### Community 63 - "NotificationDeliveryRecorder"
-Cohesion: 0.16
+Cohesion: 0.17
 Nodes (4): NotificationDeliveryRecorder, {closure#1}(), {closure#1}(), NotificationDeliveryRecorderTest
 
 ### Community 66 - "AuditLogController"
-Cohesion: 0.26
+Cohesion: 0.22
 Nodes (5): AuditLogController, {closure#16}(), {closure#17}(), {closure#3}(), {closure#4}()
 
-### Community 67 - "ProjectMembershipRules"
-Cohesion: 0.20
-Nodes (9): {closure#1}(), {closure#1}(), {closure#1}(), {closure#1}(), {closure#1}(), {closure#1}(), {closure#1}(), {closure#1}() (+1 more)
+### Community 67 - "NotificationDelivery"
+Cohesion: 0.21
+Nodes (5): NotificationDelivery, {closure#1}(), {closure#2}(), {closure#3}(), {closure#1}()
 
 ### Community 75 - "composer.json"
 Cohesion: 0.22
@@ -414,7 +410,7 @@ Cohesion: 0.22
 Nodes (9): scripts, dev, post-autoload-dump, post-create-project-cmd, post-root-package-install, post-update-cmd, pre-package-uninstall, setup (+1 more)
 
 ### Community 79 - "Illuminate\Database\Seeder"
-Cohesion: 0.09
+Cohesion: 0.08
 Nodes (8): AccountCreationPermissionSeeder, AccountLinkExpirationSettingsSeeder, DatabaseSeeder, SuperAdminSeeder, SystemSettingPermissionSeeder, SystemSettingSeeder, TestUserSeeder, UserManagementPermissionSeeder
 
 ### Community 82 - "config"
@@ -441,33 +437,33 @@ Nodes (5): autoload, psr-4, App\\, Database\\Factories\\, Database\\Seeders\\
 Cohesion: 0.29
 Nodes (7): require, barryvdh/laravel-dompdf, laravel/framework, laravel/passport, laravel/tinker, php, resend/resend-php
 
+### Community 93 - "RemoveProjectMemberActionTest"
+Cohesion: 0.09
+Nodes (3): ChangeAutoAssignmentSettingActionTest, RemoveProjectMemberActionTest, UnassignProjectOwnerActionTest
+
 ### Community 101 - "2026_11_09_041659_create_email_verification_requests_table.php"
 Cohesion: 0.50
 Nodes (3): {closure#1}(), createOutstandingRequestUniqueIndex(), up()
 
 ### Community 102 - "App\Http\Controllers\Controller"
-Cohesion: 0.10
-Nodes (6): AnnouncementController, NotificationDeliveryHistoryController, PermissionController, UserDeletionController, UserDirectoryController, SystemAnnouncementNotificationService
+Cohesion: 0.15
+Nodes (4): NotificationDeliveryHistoryController, PermissionController, UserDeletionController, UserDirectoryController
 
 ### Community 106 - "App\Http\Controllers\ProjectController"
 Cohesion: 0.33
 Nodes (3): {closure#2}(), {closure#3}(), {closure#5}()
 
-### Community 107 - "App\Services\Auth\CredentialHasher"
-Cohesion: 0.21
-Nodes (5): {closure#1}(), {closure#2}(), EmailChangeVerificationController, EmailVerificationController, UserEmailAddress
+### Community 107 - "UserEmailAddress"
+Cohesion: 0.17
+Nodes (6): {closure#1}(), CompleteAccountActivationAction, {closure#1}(), {closure#2}(), CompleteEmailChangeAction, UserEmailAddress
 
 ### Community 108 - ".log"
-Cohesion: 0.15
-Nodes (9): {closure#1}(), {closure#2}(), {closure#1}(), {closure#1}(), {closure#1}(), RequestEmailChangeAction, {closure#1}(), {closure#2}() (+1 more)
-
-### Community 109 - "NotificationDeliveryTest"
-Cohesion: 0.09
-Nodes (3): AuditLogTest, NotificationDeliveryRetryTest, NotificationDeliveryTest
+Cohesion: 0.13
+Nodes (11): {closure#1}(), {closure#1}(), {closure#2}(), {closure#1}(), {closure#1}(), {closure#1}(), {closure#1}(), RequestEmailChangeAction (+3 more)
 
 ### Community 112 - "InvitationDeliveryService"
-Cohesion: 0.18
-Nodes (6): IssueUserInvitationAction, ResendUserInvitationAction, CredentialHasher, InvitationCredentialGenerator, InvitationLinkRequestIssuer, InvitationRateLimiter
+Cohesion: 0.26
+Nodes (7): IssueUserInvitationAction, RecoverUserInvitationAction, ResendUserInvitationAction, CredentialHasher, InvitationCredentialGenerator, InvitationLinkRequestIssuer, InvitationRateLimiter
 
 ### Community 114 - "autoload-dev"
 Cohesion: 0.67
@@ -477,33 +473,45 @@ Nodes (3): autoload-dev, psr-4, Tests\\
 Cohesion: 0.67
 Nodes (3): extra, laravel, dont-discover
 
+### Community 118 - "Laravel\Passport\Client"
+Cohesion: 0.23
+Nodes (3): EnsureEmailLinkExpirationAccess, ServiceClientAuthorizer, {closure#1}()
+
+### Community 171 - "App\Models\NotificationDelivery"
+Cohesion: 0.20
+Nodes (4): AcceptInvitationAction, {closure#1}(), UserInvitationController, InvitationDeliveryService
+
 ### Community 175 - "EmailVerificationLimitSettings"
-Cohesion: 0.18
-Nodes (4): SystemSettingEmailVerificationLimitController, SystemSettingAccountLinkExpirationResource, SystemSettingEmailVerificationLimitResource, EmailVerificationLimitSettings
+Cohesion: 0.26
+Nodes (3): SystemSettingEmailVerificationLimitController, SystemSettingEmailVerificationLimitResource, EmailVerificationLimitSettings
 
 ### Community 178 - "Illuminate\Database\Eloquent\Factories\Factory"
-Cohesion: 0.14
-Nodes (4): NotificationDeliveryFactory, TestCaseStepFactory, TestRunCaseFactory, TestSuiteFactory
+Cohesion: 0.24
+Nodes (3): TestCaseStepFactory, TestRunCaseFactory, TestSuiteFactory
 
-### Community 179 - "Illuminate\Support\Facades\DB"
-Cohesion: 0.09
-Nodes (3): {closure#1}(), {closure#1}(), ServiceClientPermissionTest
-
-### Community 196 - "ProjectActivityNotificationService"
+### Community 190 - "PasswordChangeTest"
 Cohesion: 0.18
-Nodes (10): AddProjectMemberAction, AssignProjectOwnerAction, ChangeProjectAutoAssignmentSettingAction, ChangeProjectMemberRoleAction, ChangeProjectOwnerAssignmentTypeAction, RemoveProjectMemberAction, TransferProjectOwnerAction, UnassignProjectOwnerAction (+2 more)
+Nodes (3): PasswordChangedMailable, {closure#1}(), PasswordChangeTest
+
+### Community 196 - "App\Services\Authorization\ProjectVisibility"
+Cohesion: 0.24
+Nodes (7): {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}(), {closure#5}(), {closure#6}(), {closure#7}()
 
 ### Community 199 - "InvitationLinkMailable"
 Cohesion: 0.26
 Nodes (4): InvitationLinkMailable, {closure#1}(), InvitationRecoveryHttpTest, {closure#1}()
 
-### Community 211 - "ManageDefectAction.php"
-Cohesion: 0.27
-Nodes (4): {closure#1}(), {closure#2}(), {closure#3}(), ManageDefectAction
+### Community 205 - "SystemAnnouncementNotificationService"
+Cohesion: 0.33
+Nodes (3): AnnouncementController, NotificationPreferenceChecker, SystemAnnouncementNotificationService
 
-### Community 221 - "App\Http\Controllers\Settings\BulkUserController"
-Cohesion: 0.23
-Nodes (4): AssignUserRoleAction, BulkUserController, {closure#2}(), UserRoleController
+### Community 209 - "App\Models\NotificationDeliveryRetry"
+Cohesion: 0.11
+Nodes (3): {closure#1}(), TestSuiteTest, NotificationStatusTest
+
+### Community 221 - "Illuminate\Http\Request"
+Cohesion: 0.12
+Nodes (8): AuthenticatedSessionController, Controller, ProfileController, BulkUserController, {closure#3}(), RoleController, UserLifecycleController, UserRoleController
 
 ### Community 231 - "Illuminate\Support\Facades\Schema"
 Cohesion: 0.15
@@ -513,41 +521,33 @@ Nodes (3): {closure#1}(), {closure#1}(), {closure#1}()
 Cohesion: 0.33
 Nodes (3): {closure#1}(), {closure#2}(), {closure#3}()
 
-### Community 256 - ".retry"
-Cohesion: 0.17
-Nodes (4): NotificationDeliveryRetry, {closure#2}(), NotificationDeliveryRetryService, NotificationDeliveryRetryServiceTest
-
 ### Community 263 - "bootstrap/app.php"
 Cohesion: 0.32
 Nodes (3): {closure#1}(), {closure#2}(), {closure#3}()
 
-### Community 268 - "UserNotificationPreference"
-Cohesion: 0.12
-Nodes (3): UserNotificationPreference, NotificationPreferenceChecker, NotificationPreferenceEnforcementTest
-
 ### Community 271 - "Project"
-Cohesion: 0.09
-Nodes (6): DefectController, ProjectMembershipController, TestCaseController, TestSuiteController, Project, TestSuite
+Cohesion: 0.10
+Nodes (8): ChangeProjectAutoAssignmentSettingAction, ChangeProjectOwnerAssignmentTypeAction, DefectController, ProjectMembershipController, ProjectOwnershipController, {closure#1}(), Project, ProjectDeletionDependencyInspector
 
 ## Knowledge Gaps
 - **17 isolated node(s):** `php`, `layouts.app`, `layouts.app`, `layouts.app`, `layouts.settings` (+12 more)
-  These have ≤1 connection - possible missing edges. (Counts symbols only; 765 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **199 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+  These have ≤1 connection - possible missing edges. (Counts symbols only; 769 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **201 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `User` connect `Illuminate\Support\Facades\DB` to `.retry`, `Illuminate\Database\Eloquent\Relations\BelongsToMany`, `AddProjectMemberActionTest`, `ServiceClientAuthorizationTest`, `{closure#1}`, `App\Models\User`, `RoleSeeder`, `UserDirectoryTest.php`, `UserNotificationPreference`, `Project`, `Illuminate\Database\Eloquent\Relations\BelongsTo`, `ChangeProjectMemberRoleActionTest`, `.hash`, `ReactivateUserActionTest`, `AccountLinkExpirationSettings`, `ProjectReadHttpTest`, `Illuminate\Http\Request`, `App\Services\Audit\AuditLogger`, `EnsureActiveAccountMiddlewareTest.php`, `UserRoleAssignmentTest`, `AssignProjectOwnerActionTest`, `NotificationDelivery`, `UserInvitation`, `ProjectPolicyTest`, `Illuminate\Database\Eloquent\Relations\HasMany`, `UserInvitationHttpTest`, `.view`, `Illuminate\Support\Facades\DB`, `InvitationAcceptanceHttpTest`, `InvitationReissueTest`, `ChangeAutoAssignmentSettingActionTest`, `App\Models\Role`, `Closure`, `AuthorizationCodePkceTest`, `EmailLinkExpirationSetting`, `TransferProjectOwnerActionTest`, `App\Actions\AcceptInvitationAction`, `ProjectMembershipHttpTest`, `UserEmailAddressFactoryTest`, `ProjectMembershipRules`, `ProjectActivityNotificationService`, `UserFactory`, `PermissionCheckerTest`, `ProjectFactory.php`, `.members`, `EmailLinkExpirationAuditTest`, `RevokesUserCredentialsTest`, `UnassignProjectOwnerActionTest`, `Illuminate\Database\Seeder`, `SettingsAuthorizationTest`, `.hash`, `App\Http\Controllers\Settings\BulkUserController`, `InvitationDeliveryIntegrationTest`, `RemoveProjectMemberActionTest`, `App\Http\Controllers\Controller`, `.isSuperAdmin`, `EmailVerificationHttpTest`, `App\Services\Auth\CredentialHasher`, `.log`, `NotificationDeliveryTest`, `InvitationDeliveryService`, `ProjectOwnershipHttpTest`, `Laravel\Passport\Client`?**
-  _High betweenness centrality (0.160) - this node is a cross-community bridge._
+- **Why does `User` connect `Illuminate\Support\Facades\DB` to `UserLifecycleAuthorizer`, `.retry`, `AddProjectMemberActionTest`, `Database\Factories\UserFactory`, `ServiceClientAuthorizationTest`, `App\Services\Audit\AuditLogger`, `UserDirectoryTest.php`, `Project`, `Illuminate\Database\Eloquent\Relations\BelongsTo`, `ChangeProjectMemberRoleActionTest`, `.hash`, `ReactivateUserActionTest`, `AccountLinkExpirationSettings`, `ProjectReadHttpTest`, `Illuminate\Support\Facades\DB`, `NotificationDeliveryRetry`, `EnsureActiveAccountMiddlewareTest.php`, `UserRoleAssignmentTest`, `AssignProjectOwnerActionTest`, `NotificationDeliveryRetryServiceTest.php`, `.hash`, `ProjectPolicyTest`, `Illuminate\Database\Eloquent\Relations\HasMany`, `UserInvitationHttpTest`, `.view`, `InvitationAcceptanceHttpTest`, `InvitationReissueTest`, `Closure`, `TestResult`, `EmailLinkExpirationSetting`, `TransferProjectOwnerActionTest`, `App\Actions\AcceptInvitationAction`, `AuthorizationCodePkceTest`, `ProjectMembershipHttpTest`, `ProjectFactory.php`, `.members`, `UserInvitationFactory.php`, `EmailLinkExpirationAuditTest`, `RevokesUserCredentialsTest`, `Illuminate\Database\Seeder`, `SettingsAuthorizationTest`, `RemoveProjectMemberActionTest`, `Illuminate\Http\Request`, `InvitationDeliveryIntegrationTest`, `.isSuperAdmin`, `EmailVerificationHttpTest`, `UserEmailAddress`, `.log`, `InvitationDeliveryService`, `ProjectOwnershipHttpTest`, `Laravel\Passport\Client`?**
+  _High betweenness centrality (0.148) - this node is a cross-community bridge._
 - **What connects `php`, `layouts.app`, `layouts.app` to the rest of the system?**
   _17 weakly-connected nodes found - possible missing edges._
-- **Should `DeactivateUserActionTest` be split into smaller, more focused modules?**
-  _Cohesion score 0.10730804810360776 - nodes in this community are weakly interconnected._
-- **Why does `TestCase` connect `Illuminate\Support\Facades\DB` to `.retry`, `DeactivateUserActionTest`, `AddProjectMemberActionTest`, `ServiceClientAuthorizationTest`, `RoleSeeder`, `UserDirectoryTest.php`, `ChangeProjectMemberRoleActionTest`, `.hash`, `ReactivateUserActionTest`, `AccountLinkExpirationSettings`, `OAuthScopes`, `ProjectReadHttpTest`, `EnsureActiveAccountMiddlewareTest.php`, `UserRoleAssignmentTest`, `AssignProjectOwnerActionTest`, `NotificationDelivery`, `ProjectOwnershipTest`, `InvitationLifecycleTest`, `ProjectPolicyTest`, `UserInvitationHttpTest`, `Illuminate\Support\Facades\DB`, `InvitationAcceptanceHttpTest`, `InvitationReissueTest`, `ChangeAutoAssignmentSettingActionTest`, `App\Models\Role`, `AuthorizationCodePkceTest`, `EmailLinkExpirationSetting`, `TransferProjectOwnerActionTest`, `ProjectMembershipHttpTest`, `NotificationDeliveryRecorder`, `PermissionMiddlewareTest`, `UserEmailAddressFactoryTest`, `PermissionCheckerTest`, `.members`, `InvitationLinkMailable`, `ProjectRelationshipTest`, `EmailLinkExpirationAuditTest`, `RevokesUserCredentialsTest`, `UnassignProjectOwnerActionTest`, `SettingsAuthorizationTest`, `AuthorizationCodePkceMiddlewareTest`, `AuditLoggerTest`, `RemoveProjectMemberActionTest`, `InvitationDeliveryIntegrationTest`, `EmailVerificationService`, `EmailVerificationHttpTest`, `NotificationDeliveryTest`, `ProjectOwnershipHttpTest`, `OAuthScopeIssuanceTest`?**
-  _High betweenness centrality (0.072) - this node is a cross-community bridge._
+- **Should `UserLifecycleAuthorizer` be split into smaller, more focused modules?**
+  _Cohesion score 0.13105413105413105 - nodes in this community are weakly interconnected._
+- **Why does `TestCase` connect `Illuminate\Support\Facades\DB` to `.retry`, `UserLifecycleAuthorizer`, `AddProjectMemberActionTest`, `ServiceClientAuthorizationTest`, `AuditLogTest`, `RoleSeeder`, `UserDirectoryTest.php`, `ChangeProjectMemberRoleActionTest`, `.hash`, `ReactivateUserActionTest`, `AccountLinkExpirationSettings`, `OAuthScopes`, `ProjectReadHttpTest`, `Illuminate\Support\Facades\DB`, `EnsureActiveAccountMiddlewareTest.php`, `UserRoleAssignmentTest`, `AssignProjectOwnerActionTest`, `NotificationDeliveryRetryServiceTest.php`, `ProjectOwnershipTest`, `InvitationLifecycleTest`, `ProjectPolicyTest`, `UserInvitationHttpTest`, `InvitationAcceptanceHttpTest`, `InvitationReissueTest`, `NotificationDeliveryRetryTest`, `App\Models\Role`, `AuthorizationCodePkceTest`, `EmailLinkExpirationSetting`, `TransferProjectOwnerActionTest`, `ProjectMembershipHttpTest`, `NotificationDeliveryRecorder`, `PermissionMiddlewareTest`, `UserEmailAddressFactoryTest`, `.members`, `InvitationLinkMailable`, `ProjectRelationshipTest`, `EmailLinkExpirationAuditTest`, `RevokesUserCredentialsTest`, `SettingsAuthorizationTest`, `AuthorizationCodePkceMiddlewareTest`, `AuditLoggerTest`, `RemoveProjectMemberActionTest`, `InvitationDeliveryIntegrationTest`, `EmailVerificationService`, `EmailVerificationHttpTest`, `NotificationDeliveryTest`, `ProjectOwnershipHttpTest`, `OAuthScopeIssuanceTest`?**
+  _High betweenness centrality (0.051) - this node is a cross-community bridge._
 - **Should `AddProjectMemberActionTest` be split into smaller, more focused modules?**
   _Cohesion score 0.09059029807130334 - nodes in this community are weakly interconnected._
-- **Why does `Project` connect `Project` to `AddProjectMemberActionTest`, `Illuminate\Support\Facades\DB`, `App\Models\User`, `RoleSeeder`, `DefectFactory.php`, `TestRunFactory.php`, `Illuminate\Database\Eloquent\Relations\BelongsTo`, `App\Models\TestCase`, `ProjectReadHttpTest`, `Illuminate\Http\Request`, `AssignProjectOwnerActionTest`, `Defect`, `TestRun`, `.view`, `Illuminate\Support\Facades\DB`, `ChangeAutoAssignmentSettingActionTest`, `App\Models\Role`, `TransferProjectOwnerActionTest`, `ProjectMembershipHttpTest`, `ProjectMembershipRules`, `ProjectActivityNotificationService`, `ProjectFactory.php`, `.members`, `ManageDefectAction.php`, `TestCaseFactory.php`, `App\Models\TestRun`, `ProjectOwnershipHttpTest`?**
-  _High betweenness centrality (0.033) - this node is a cross-community bridge._
+- **Why does `Project` connect `Project` to `AddProjectMemberActionTest`, `Illuminate\Support\Facades\DB`, `App\Services\Audit\AuditLogger`, `DefectFactory.php`, `TestRunFactory.php`, `Illuminate\Database\Eloquent\Relations\BelongsTo`, `App\Models\TestCase`, `ProjectReadHttpTest`, `Illuminate\Http\Request`, `Illuminate\Support\Facades\DB`, `AssignProjectOwnerActionTest`, `Defect`, `TestRun`, `.view`, `Illuminate\Database\Eloquent\Factories\Factory`, `App\Http\Controllers\Projects\TestSuiteController`, `App\Models\Role`, `TransferProjectOwnerActionTest`, `ProjectMembershipHttpTest`, `ProjectFactory.php`, `.members`, `App\Models\NotificationDeliveryRetry`, `TestCaseFactory.php`, `App\Models\TestRun`, `RemoveProjectMemberActionTest`, `ProjectOwnershipHttpTest`, `App\Http\Controllers\Projects\TestCaseController`?**
+  _High betweenness centrality (0.044) - this node is a cross-community bridge._
 - **Should `Illuminate\Database\Eloquent\Builder` be split into smaller, more focused modules?**
-  _Cohesion score 0.12413793103448276 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.12923076923076923 - nodes in this community are weakly interconnected._

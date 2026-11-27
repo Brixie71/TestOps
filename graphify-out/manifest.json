@@ -276,9 +276,9 @@
     "semantic_hash": "eb678a17573b8fd4fa9920ec869feb1c"
   },
   "app/Models/Project.php": {
-    "mtime": 1795620985.4945066,
-    "seen": 1795621418.6965818,
-    "ast_hash": "88c45d26b638416d64098f69a9132ea9",
+    "mtime": 1795648031.0908966,
+    "seen": 1795648115.1678145,
+    "ast_hash": "2eb2e2760fde409d76b53e0b21deaadb",
     "semantic_hash": ""
   },
   "app/Models/Role.php": {
@@ -1357,9 +1357,9 @@
     "semantic_hash": "87acd488a49797101747ec0da40a59eb"
   },
   "tests/Feature/Models/AuthenticatedShellTest.php": {
-    "mtime": 1795623439.2379658,
-    "seen": 1795646468.9301069,
-    "ast_hash": "f3f6ad39969a2de3a8faa57c80864147",
+    "mtime": 1795646476.4375956,
+    "seen": 1795648115.1678145,
+    "ast_hash": "77f53d84ad03135554255f3036808e59",
     "semantic_hash": ""
   },
   "tests/Feature/Models/NotificationDeliveryRetryTest.php": {
@@ -1855,9 +1855,9 @@
     "semantic_hash": ""
   },
   ".ai/guides/INITIAL-SETUP-FINALIZATION.md": {
-    "mtime": 1795623347.5388482,
-    "seen": 1795646468.9311035,
-    "ast_hash": "14f4842fa46fc154b52c4a84c2b59dcc",
+    "mtime": 1795646996.3290296,
+    "seen": 1795648115.1678145,
+    "ast_hash": "7dffd61e133d78a4c8b0d2e666ddf50c",
     "semantic_hash": ""
   },
   ".ai/guides/USER-MANAGEMENT-MODULE.md": {
@@ -1867,9 +1867,9 @@
     "semantic_hash": ""
   },
   ".ai/rules/app.md": {
-    "mtime": 1795646399.188202,
-    "seen": 1795646468.9311035,
-    "ast_hash": "2db4a0c2fc9966b26b33f8cc443b751d",
+    "mtime": 1795648077.7270114,
+    "seen": 1795648115.1678145,
+    "ast_hash": "fd7014c7b3ad361b1f16bb10860b5670",
     "semantic_hash": ""
   },
   ".ai/rules/composer-json.md": {
@@ -2341,9 +2341,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1795646415.3647969,
-    "seen": 1795646468.9311035,
-    "ast_hash": "6d9e37f8ba473046f7f6885443512703",
+    "mtime": 1795648073.352857,
+    "seen": 1795648115.1678145,
+    "ast_hash": "f1282df21fa62454e174a3fcd7cc4a06",
     "semantic_hash": ""
   },
   "docs/oauth-service-authorization.md": {
@@ -2845,9 +2845,9 @@
     "semantic_hash": ""
   },
   "tests/Feature/Models/TestSuiteTest.php": {
-    "mtime": 1795182963.0312493,
-    "seen": 1795183036.8814662,
-    "ast_hash": "146b3f03df5d8040b7dcf75736677f3c",
+    "mtime": 1795648070.3118365,
+    "seen": 1795648115.1678145,
+    "ast_hash": "161b8d86e616916fe145fafd35a436d9",
     "semantic_hash": ""
   },
   "app/Http/Controllers/Settings/PermissionController.php": {
@@ -3217,9 +3217,9 @@
     "semantic_hash": ""
   },
   ".scratch/dashboard/spec.md": {
-    "mtime": 1795646402.313365,
-    "seen": 1795646468.9311035,
-    "ast_hash": "cde4c14c553e3194b63f90f244198ff2",
+    "mtime": 1795647570.210962,
+    "seen": 1795648115.1678145,
+    "ast_hash": "d0c4c44528d21ceb14b603c0cc512a97",
     "semantic_hash": ""
   },
   "app/Http/Controllers/DashboardController.php": {
@@ -3232,6 +3232,18 @@
     "mtime": 1795646407.0075996,
     "seen": 1795646468.9301069,
     "ast_hash": "0d09245acb8a67a90d34b940d45b0e5d",
+    "semantic_hash": ""
+  },
+  "app/Services/Projects/ProjectDeletionDependencyInspector.php": {
+    "mtime": 1795648022.38637,
+    "seen": 1795648115.1678145,
+    "ast_hash": "a99fd12c2f5ea77ac5edca60d2fe784b",
+    "semantic_hash": ""
+  },
+  "tests/Feature/Models/ProjectDeletionTest.php": {
+    "mtime": 1795648049.6122193,
+    "seen": 1795648115.1678145,
+    "ast_hash": "2b71c852e3c2d7590305d1e69383b1fe",
     "semantic_hash": ""
   },
   "package-lock.json": {
