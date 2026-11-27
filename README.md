@@ -111,7 +111,7 @@ A local Haraka + Mailpit stack running under Podman Compose supports outbound em
 ## Known limitations
 
 - **Initial Super Admin provisioning is not implemented.** Automatic Super Admin provisioning through environment variables has been removed. `RoleSeeder` seeds only the `SUPER_ADMIN` role — not a user — and `SuperAdminSeeder` explicitly refuses to auto-provision accounts. No supported provisioning command currently exists; creating the first Super Admin account requires a controlled administrative setup procedure that has not yet been documented or implemented. Do not create accounts by manually inserting password hashes into the database.
-- Testing retention is enforced: deleting a project is refused while it holds any test suites, cases, runs, or defects, so project deletion cannot cascade testing history. Runs and defects have no individual delete path yet, and test-case attachments are not implemented.
+- Testing retention is enforced: deleting a project is refused while it holds any test suites, cases, runs, or defects, so project deletion cannot cascade testing history. Runs and defects are immutable by design: runs end as `completed` or `aborted`, defects as `resolved`, `closed`, or `wont_fix`, and neither has a delete path. Test-case attachments are not implemented.
 - The dashboard is implemented as a read-only personal summary: scoped KPI cards plus lists for visible projects, runs in progress, and open defects. Charts, an activity feed, and exports remain out of scope.
 - Production deployment is not automated in this repository.
 
