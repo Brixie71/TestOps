@@ -78,6 +78,7 @@ Authorization behavior:
 - Test runs that freeze case title, steps, and severity at start time (`TR-#`), with start, complete, and abort.
 - One current result per frozen case (`passed`, `failed`, `blocked`, `skipped`, `not_run`), re-recordable while the run is open.
 - Project defects (`DEF-#`) optionally traced to a result, with severity and status transitions.
+- Per-run evidence sheet (`projects/{project}/test-runs/{run}/report`) showing the frozen steps, each case's result and notes, and the defects traced to it, with a CSV export of the same rows. It is read-only and follows `viewTestRuns`; defect data is omitted without `viewDefects`.
 - Project-scoped permissions for every read and write; `SYSTEM_ADMIN` is read-only; all case, run, result, and defect changes are audited.
 
 ### Administration

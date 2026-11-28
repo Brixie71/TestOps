@@ -56,9 +56,18 @@
                 </p>
             </div>
 
-            <span class="shrink-0 rounded-md border px-2.5 py-1 text-xs font-medium {{ $statusStyles[$run->status] ?? $statusStyles['open'] }}">
-                {{ ucfirst($run->status) }}
-            </span>
+            <div class="flex shrink-0 items-center gap-2">
+                <a
+                    href="{{ route('projects.test-runs.report', [$project, $run]) }}"
+                    class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                    Run report
+                </a>
+
+                <span class="rounded-md border px-2.5 py-1 text-xs font-medium {{ $statusStyles[$run->status] ?? $statusStyles['open'] }}">
+                    {{ ucfirst($run->status) }}
+                </span>
+            </div>
         </header>
 
         @if (session('status'))

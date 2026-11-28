@@ -14,6 +14,7 @@ use App\Http\Controllers\Projects\ProjectMembershipController;
 use App\Http\Controllers\Projects\ProjectOwnershipController;
 use App\Http\Controllers\Projects\TestCaseController;
 use App\Http\Controllers\Projects\TestRunController;
+use App\Http\Controllers\Projects\TestRunReportController;
 use App\Http\Controllers\Projects\TestSuiteController;
 use App\Http\Controllers\Settings\AnnouncementController;
 use App\Http\Controllers\Settings\AuditLogController;
@@ -168,6 +169,18 @@ Route::middleware('auth')->group(function () {
         Route::post('projects/{project}/test-runs/{testRun}/results', [TestRunController::class, 'recordResult'])
             ->scopeBindings()
             ->name('projects.test-runs.results.store');
+
+        // Run report: a read-only evidence sheet for one run. Reads reuse
+        // viewTestRuns; defect data additionally requires viewDefects and is
+        // omitted when absent.
+        Route::get('projects/{project}/test-runs/{testRun}/report', [TestRunReportController::class, 'show'])
+            ->scopeBindings()
+            ->name('projects.test-runs.report');
+
+        // CSV export of the report: same content, one row per frozen case.
+        Route::get('projects/{project}/test-runs/{testRun}/report/export', [TestRunReportController::class, 'export'])
+            ->scopeBindings()
+            ->name('projects.test-runs.report.export');
 
         // Defects: project-scoped reports, optionally traced to a result.
         Route::get('projects/{project}/defects', [DefectController::class, 'index'])
