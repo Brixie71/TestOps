@@ -8,7 +8,7 @@ TestOps project. Read-only; do not modify files unless explicitly requested.
 1. Inventory the documentation surface:
 
    ```powershell
-   Get-ChildItem ".\.ai", ".\.agents\skills", ".\.claude\skills", ".\.opencode\commands" -Recurse -File -Filter "*.md" |
+   Get-ChildItem ".\.ai", ".\.agents\skills", ".\.opencode\commands" -Recurse -File -Filter "*.md" |
        Select-Object FullName
    Get-Content ".\README.md"
    Get-Content ".\AGENTS.md"
@@ -26,7 +26,7 @@ TestOps project. Read-only; do not modify files unless explicitly requested.
    - Claims about enabled/disabled features contradicted by real configuration
      (e.g. Passport grant state).
 3. Cross-check consistency across instruction sources: `AGENTS.md` vs
-   `CLAUDE.md` vs `.ai/rules/` vs skills - flag rules stated differently in
+   `.ai/rules/` vs skills - flag rules stated differently in
    two places, and duplicated guidance that could drift.
 4. Confirm approved policy statements are consistent everywhere they appear
    (Passport baseline table, scope/permission separation) - divergence between

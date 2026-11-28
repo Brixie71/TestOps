@@ -443,11 +443,10 @@ The repository should also explain where AI-specific instructions live:
 - `.ai/rules/`
 - `.ai/guides/`
 - `AGENTS.md`
-- `CLAUDE.md`
 - `.opencode/`
-- `.agents/` and `.claude/` skill directories, if these remain part of the intended repository workflow.
+- `.agents/` skill directory
 
-Review duplicated AI skill content and retain only what the project intentionally supports. Do not delete files simply because they appear duplicated without checking their purpose and tool compatibility.
+Review duplicated AI skill content and retain only what the project intentionally supports. Do not delete files simply because they appear duplicated without checking their purpose and tool compatibility. The Claude Code integration (`.claude/`, `CLAUDE.md`) was removed on 2026-11-27 because the project does not use Claude; the unique `deploying-to-cloud` skill was preserved under `.agents/skills/`.
 
 ## 13. Dashboard Start Gate
 

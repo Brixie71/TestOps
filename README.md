@@ -214,11 +214,10 @@ TestOps ships local email testing infrastructure — Haraka for authenticated SM
 This repository keeps agent-facing instructions in version control:
 
 - `AGENTS.md` — repository-wide engineering rules and verification contract.
-- `CLAUDE.md` — Laravel Boost-generated framework guidelines.
 - `.ai/rules/` — path-scoped rules; `.ai/rules/index.md` maps globs to the matching file.
 - `.ai/guides/` — domain guides for database design, Eloquent relationships, user management, and setup.
 - `.opencode/` — slash commands and harness configuration.
-- `.agents/skills/` — project skills loaded on demand; `.claude/` mirrors the Claude Code integration.
+- `.agents/skills/` — project skills loaded on demand.
 - `.scratch/` — local issue tracker and feature specs. It is working material, not application code.
 
 ## Security
